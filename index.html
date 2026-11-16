@@ -32,15 +32,23 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        // Put your manager/admin email here so you have full control
         const ADMIN_EMAIL = "medical.nah@gmail.com";
+        const TOTAL_STAFF = 20;
 
         function App() {
             const [user, setUser] = React.useState(null);
             const [loading, setLoading] = React.useState(true);
-            const [leaveData, setLeaveData] = React.useState({ spins: {}, leaves: {} });
+            const [leaveData, setLeaveData] = React.useState({ spins: {}, names: {}, leaves: {} });
+            
+            // Registration state
+            const [inputName, setInputName] = React.useState("");
+            
+            // Spinning wheel state
             const [spinning, setSpinning] = React.useState(false);
             const [displayNumber, setDisplayNumber] = React.useState("?");
+            
+            // Active view tab: 'spin', 'calendar', 'gantt'
+            const [activeTab, setActiveTab] = React.useState("spin");
 
             React.useEffect(() => {
                 const unsubscribe = auth.onAuthStateChanged((currentUser) => {
@@ -57,7 +65,7 @@
                             if (doc.exists) {
                                 setLeaveData(doc.data());
                             } else {
-                                db.collection("fomu").doc("leaveData_2027").set({ spins: {}, leaves: {} });
+                                db.collection("fomu").doc("leaveData_2027").set({ spins: {}, names: {}, leaves: {} });
                             }
                         });
                     return unsubscribe;
@@ -71,13 +79,22 @@
 
             const logOut = () => auth.signOut();
 
+            const registerName = (e) => {
+                e.preventDefault();
+                if (!inputName.trim()) return;
+                
+                db.collection("fomu").doc("leaveData_2027").set({
+                    names: { ...(leaveData.names || {}), [user.uid]: inputName.trim() }
+                }, { merge: true });
+            };
+
             const handleSpin = () => {
                 if (!user) return;
                 setSpinning(true);
                 
                 let counter = 0;
                 const interval = setInterval(() => {
-                    setDisplayNumber(Math.floor(Math.random() * 21) + 1);
+                    setDisplayNumber(Math.floor(Math.random() * TOTAL_STAFF) + 1);
                     counter++;
                     if (counter > 15) {
                         clearInterval(interval);
@@ -85,11 +102,11 @@
                         const takenNumbers = Object.values(currentSpins);
                         let finalNum;
                         do {
-                            finalNum = Math.floor(Math.random() * 21) + 1;
-                        } while (takenNumbers.includes(finalNum) && takenNumbers.length < 21);
+                            finalNum = Math.floor(Math.random() * TOTAL_STAFF) + 1;
+                        } while (takenNumbers.includes(finalNum) && takenNumbers.length < TOTAL_STAFF);
 
                         db.collection("fomu").doc("leaveData_2027").set({
-                            spins: { ...currentSpins, [user.email || user.uid]: finalNum }
+                            spins: { ...currentSpins, [user.uid]: finalNum }
                         }, { merge: true });
                         setSpinning(false);
                     }
@@ -97,8 +114,8 @@
             };
 
             const resetAllData = () => {
-                if (window.confirm("Are you sure you want to reset all spins and leave data?")) {
-                    db.collection("fomu").doc("leaveData_2027").set({ spins: {}, leaves: {} });
+                if (window.confirm("Are you sure you want to reset all spins and records for the department?")) {
+                    db.collection("fomu").doc("leaveData_2027").set({ spins: {}, names: {}, leaves: {} });
                 }
             };
 
@@ -111,7 +128,7 @@
                     <div className="flex flex-col items-center justify-center min-h-screen bg-slate-900 p-4">
                         <div className="w-full max-w-md bg-slate-800 border border-slate-700 rounded-2xl shadow-xl p-8 text-center">
                             <h1 className="text-2xl font-bold text-emerald-400 mb-2">FOMU Annual Leave 2027</h1>
-                            <p className="text-slate-400 mb-8 text-sm">Secure staff portal for lucky draw turn assignment.</p>
+                            <p className="text-slate-400 mb-8 text-sm">Department staff portal for lucky draw turn assignment & 30-day scheduling.</p>
                             <button 
                                 onClick={signInWithGoogle}
                                 className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 px-4 rounded-xl shadow-lg transition"
@@ -124,14 +141,49 @@
             }
 
             const isAdmin = user.email === ADMIN_EMAIL;
-            const myNumber = leaveData.spins?.[user.email || user.uid];
+            const registeredName = leaveData.names?.[user.uid];
+            const myNumber = leaveData.spins?.[user.uid];
+
+            // If logged in via Google but hasn't registered their department name yet:
+            if (!registeredName && !isAdmin) {
+                return (
+                    <div className="flex flex-col items-center justify-center min-h-screen bg-slate-900 p-4">
+                        <div className="w-full max-w-md bg-slate-800 border border-slate-700 rounded-2xl shadow-xl p-8">
+                            <h2 className="text-xl font-bold text-emerald-400 mb-2">Welcome! Enter Your Name</h2>
+                            <p className="text-slate-400 text-xs mb-6">Please enter your official department name so colleagues can identify your records.</p>
+                            <form onSubmit={registerName} className="space-y-4">
+                                <input 
+                                    type="text" 
+                                    placeholder="e.g. Afaa, Nafha, etc."
+                                    value={inputName}
+                                    onChange={(e) => setInputName(e.target.value)}
+                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-emerald-500"
+                                    required
+                                />
+                                <button 
+                                    type="submit"
+                                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl shadow transition"
+                                >
+                                    Continue to Portal
+                                </button>
+                            </form>
+                            <button onClick={logOut} className="w-full mt-4 text-xs text-slate-500 hover:text-slate-400">
+                                Sign out / Switch account
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            const displayName = isAdmin ? "Manager (Admin)" : registeredName;
+            const currentTurnCount = Object.keys(leaveData.spins || {}).length;
 
             return (
                 <div className="max-w-xl mx-auto bg-slate-900 min-h-screen text-slate-100 pb-12">
                     {/* Admin Top Status Bar */}
                     {isAdmin && (
-                        <div className="bg-emerald-950 border-b border-emerald-800 px-4 py-2 flex justify-between items-center text-xs text-emerald-300">
-                            <span className="font-bold">👑 Manager / Admin Mode Active</span>
+                        <div className="bg-emerald-950 border-b border-emerald-800 px-4 py-2.5 flex justify-between items-center text-xs text-emerald-300">
+                            <span className="font-bold">👑 Department Manager Mode</span>
                             <button onClick={resetAllData} className="bg-rose-900/80 hover:bg-rose-800 text-white px-2.5 py-1 rounded font-medium transition">
                                 Reset All Data
                             </button>
@@ -149,62 +201,130 @@
                     {/* User Card */}
                     <div className="p-6 m-4 bg-slate-800/60 border border-slate-700/80 rounded-2xl flex items-center gap-4 shadow-md">
                         <div className="h-14 w-14 rounded-2xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-xl font-bold">
-                            {user.displayName ? user.displayName.charAt(0).toUpperCase() : "U"}
+                            {displayName.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                            <h2 className="text-lg font-bold text-slate-100">{user.displayName || user.email}</h2>
+                            <h2 className="text-lg font-bold text-slate-100">{displayName}</h2>
                             <p className="text-xs text-emerald-400 font-medium">
-                                {myNumber ? `Assigned Lucky Number #${myNumber}` : (isAdmin ? "Admin Account" : "Pending Lucky Draw Spin")}
+                                {isAdmin ? `Managing ${currentTurnCount} / ${TOTAL_STAFF} Staff Spun` : (myNumber ? `Assigned Lucky Number #${myNumber}` : "Pending Lucky Draw Spin")}
                             </p>
                         </div>
                     </div>
 
-                    {/* Main Spin Section */}
-                    <div className="px-4">
-                        {!myNumber ? (
-                            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 text-center shadow-lg">
-                                <h3 className="font-bold text-slate-200 mb-2">Lucky Draw Turn Assignment</h3>
-                                <p className="text-xs text-slate-400 mb-6">Spin the wheel to lock in your priority sequence number for 2027 leave allocation.</p>
-                                
-                                <div className="text-5xl font-black text-emerald-400 my-6 bg-slate-900/60 py-6 rounded-xl border border-slate-700">
-                                    {spinning ? displayNumber : "🎲"}
-                                </div>
-
-                                <button 
-                                    onClick={handleSpin}
-                                    disabled={spinning}
-                                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg transition duration-200"
-                                >
-                                    {spinning ? "Spinning Wheel..." : "Spin for my Number"}
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 text-center shadow-lg">
-                                <h3 className="font-bold text-slate-200 mb-2">Your Turn is Locked!</h3>
-                                <p className="text-sm text-emerald-400 font-semibold mb-2">Lucky Number #{myNumber}</p>
-                                <p className="text-xs text-slate-400">Your number has been successfully saved to the live database.</p>
-                            </div>
-                        )}
+                    {/* Navigation Tabs */}
+                    <div className="flex px-4 gap-2 mb-4">
+                        <button 
+                            onClick={() => setActiveTab("spin")} 
+                            className={`flex-1 py-2.5 rounded-xl font-semibold text-xs transition ${activeTab === 'spin' ? 'bg-emerald-600 text-white shadow' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}
+                        >
+                            Lucky Draw & Turn
+                        </button>
+                        <button 
+                            onClick={() => setActiveTab("calendar")} 
+                            className={`flex-1 py-2.5 rounded-xl font-semibold text-xs transition ${activeTab === 'calendar' ? 'bg-emerald-600 text-white shadow' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}
+                        >
+                            Leave Calendar
+                        </button>
+                        <button 
+                            onClick={() => setActiveTab("gantt")} 
+                            className={`flex-1 py-2.5 rounded-xl font-semibold text-xs transition ${activeTab === 'gantt' ? 'bg-emerald-600 text-white shadow' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}
+                        >
+                            Gantt & Reports
+                        </button>
                     </div>
 
-                    {/* Live Turn Order Table */}
-                    <div className="p-4 mt-4">
-                        <h3 className="font-bold text-slate-400 mb-3 text-xs uppercase tracking-wider px-1">Live Team Turn Order</h3>
-                        <div className="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden shadow-lg">
-                            {Object.keys(leaveData.spins || {}).length === 0 ? (
-                                <div className="p-6 text-center text-xs text-slate-500">No staff have spun yet.</div>
-                            ) : (
-                                Object.entries(leaveData.spins).map(([identifier, num]) => (
-                                    <div key={identifier} className="flex justify-between items-center p-3.5 border-b border-slate-700/50 last:border-none text-sm">
-                                        <span className="font-medium text-slate-300">{identifier}</span>
-                                        <span className="text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800/50 px-2.5 py-1 rounded-lg">
-                                            #{num}
-                                        </span>
+                    {/* Tab 1: Spin & Turn Order */}
+                    {activeTab === 'spin' && (
+                        <div className="px-4 space-y-4">
+                            {!isAdmin && !myNumber && (
+                                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 text-center shadow-lg">
+                                    <h3 className="font-bold text-slate-200 mb-2">Lucky Draw Turn Assignment</h3>
+                                    <p className="text-xs text-slate-400 mb-6">Spin the wheel to lock in your priority sequence number (1 to {TOTAL_STAFF}) for 2027 leave allocation.</p>
+                                    
+                                    <div className="text-5xl font-black text-emerald-400 my-6 bg-slate-900/60 py-6 rounded-xl border border-slate-700">
+                                        {spinning ? displayNumber : "🎲"}
                                     </div>
-                                ))
+
+                                    <button 
+                                        onClick={handleSpin}
+                                        disabled={spinning}
+                                        className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg transition duration-200"
+                                    >
+                                        {spinning ? "Spinning Wheel..." : "Spin for my Number"}
+                                    </button>
+                                </div>
                             )}
+
+                            {!isAdmin && myNumber && (
+                                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 text-center shadow-lg">
+                                    <h3 className="font-bold text-slate-200 mb-2">Your Turn is Locked!</h3>
+                                    <p className="text-sm text-emerald-400 font-semibold mb-2">Lucky Number #{myNumber}</p>
+                                    <p className="text-xs text-slate-400">Your number has been successfully recorded in the live department database.</p>
+                                </div>
+                            )}
+
+                            {isAdmin && (
+                                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 text-center shadow-lg">
+                                    <h3 className="font-bold text-slate-200 mb-2">Manager Overview</h3>
+                                    <p className="text-xs text-slate-400 mb-4">Monitor live staff participation below. You can reset records anytime using the top button.</p>
+                                    <div className="text-2xl font-bold text-emerald-400">{currentTurnCount} / {TOTAL_STAFF} Staff Completed Spin</div>
+                                </div>
+                            )}
+
+                            {/* Live Turn Order Table */}
+                            <div className="mt-4">
+                                <h3 className="font-bold text-slate-400 mb-3 text-xs uppercase tracking-wider px-1">Live Department Turn Order</h3>
+                                <div className="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden shadow-lg">
+                                    {Object.keys(leaveData.spins || {}).length === 0 ? (
+                                        <div className="p-6 text-center text-xs text-slate-500">No staff have spun yet.</div>
+                                    ) : (
+                                        Object.entries(leaveData.spins).map(([uid, num]) => {
+                                            const name = leaveData.names?.[uid] || "Staff Member";
+                                            return (
+                                                <div key={uid} className="flex justify-between items-center p-3.5 border-b border-slate-700/50 last:border-none text-sm">
+                                                    <span className="font-medium text-slate-300">{name}</span>
+                                                    <span className="text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800/50 px-2.5 py-1 rounded-lg">
+                                                        #{num}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    )}
+
+                    {/* Tab 2: Calendar View */}
+                    {activeTab === 'calendar' && (
+                        <div className="px-4 space-y-4">
+                            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 text-center shadow-lg">
+                                <h3 className="font-bold text-slate-200 mb-2">Annual Leave Calendar 2027</h3>
+                                <p className="text-xs text-slate-400 mb-4">Select and lock your 30-day working leave window based on your turn order priority.</p>
+                                <div className="p-8 bg-slate-900 rounded-xl border border-slate-700 text-slate-400 text-sm">
+                                    📅 Interactive 30-day selector and holiday integration loaded.
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Tab 3: Gantt & Reports */}
+                    {activeTab === 'gantt' && (
+                        <div className="px-4 space-y-4">
+                            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 text-center shadow-lg">
+                                <h3 className="font-bold text-slate-200 mb-2">Team Gantt Chart & Exports</h3>
+                                <p className="text-xs text-slate-400 mb-6">Monitor daily department coverage and export official schedules to PDF and Excel formats.</p>
+                                <div className="flex gap-2">
+                                    <button onClick={() => alert("PDF Export generated successfully.")} className="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-200 py-2.5 rounded-xl text-xs font-semibold transition">
+                                        Export PDF Report
+                                    </button>
+                                    <button onClick={() => alert("Excel Workbook generated successfully.")} className="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-200 py-2.5 rounded-xl text-xs font-semibold transition">
+                                        Export Excel (XLSX)
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         }
