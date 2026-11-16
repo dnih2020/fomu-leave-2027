@@ -6,7 +6,7 @@
     <title>FOMU 2027 Annual Leave</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Firebase SDKs (Compat version for reliable single-file compatibility) -->
+    <!-- Firebase SDKs (Compat version) -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -270,15 +270,13 @@ function createFreshState() {
 
 let state = createFreshState();
 let currentUser = null;
-let roleView = 'STAFF'; // 'STAFF' | 'MANAGER'
-let staffTab = 'MY_LEAVE'; // 'MY_LEAVE' | 'TEAM_CAL'
+let authInitialized = false;
+let roleView = 'STAFF';
+let staffTab = 'MY_LEAVE';
 let managerSub = 'MAIN';
-let calViewMode = 'WEEK';
-let selectedCalDate = '2027-04-04';
 let wheelAngle = 0;
 let isSpinning = false;
 let rollingDisplay = 'SPIN';
-let ganttUseSampleData = false;
 
 let leaveForm = {
     forStaffId: null,
@@ -290,10 +288,11 @@ let leaveForm = {
 };
 
 // ============================================================================
-// 2. FIREBASE SYNC & AUTH LISTENERS
+// 2. FIREBASE AUTH & FIRESTORE SYNC LISTENERS
 // ============================================================================
 auth.onAuthStateChanged((user) => {
     currentUser = user;
+    authInitialized = true;
     renderApp();
 });
 
@@ -390,31 +389,12 @@ function findEndDateForWorkingDays(startIso, targetWorkingDays) {
     }
     return null;
 }
-function getDailyLimit(iso) {
-    if (state.dateLimits && state.dateLimits[iso] !== undefined) return Number(state.dateLimits[iso]);
-    const month = Number(iso.slice(5, 7));
-    return Number(state.monthLimits[month] || 2);
-}
-function getStaffOnLeaveOnDate(iso, excludeStaffId = null) {
-    const names = [];
-    state.staff.forEach(s => {
-        if (!s.confirmedAt || s.id === excludeStaffId) return;
-        const inP1 = s.period1 && iso >= s.period1.start && iso <= s.period1.end;
-        const inP2 = s.period2 && iso >= s.period2.start && iso <= s.period2.end;
-        if (inP1 || inP2) names.push(s.name);
-    });
-    return names;
-}
 function getActiveParticipants() { return state.staff.filter(s => s.canSpin !== false); }
 function getCurrentTurnMember() {
     const active = getActiveParticipants();
     if (active.length === 0 || !active.every(s => s.luckyNumber !== null)) return null;
     const sorted = active.slice().sort((a, b) => a.luckyNumber - b.luckyNumber);
     return sorted.find(s => !s.confirmedAt) || null;
-}
-function ordinal(n) {
-    const s = ['th', 'st', 'nd', 'rd'], v = n % 100;
-    return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 function showToast(msg, type = 'info') {
     const box = document.getElementById('toastBox');
@@ -441,7 +421,11 @@ function handleGoogleSignIn() {
 }
 
 function handleSignOut() {
-    auth.signOut();
+    auth.signOut().then(() => {
+        currentUser = null;
+        roleView = 'STAFF';
+        renderApp();
+    });
 }
 
 function handleSpinClick() {
@@ -558,6 +542,11 @@ function renderApp() {
     const frame = document.getElementById('appFrame');
     if (!frame) return;
 
+    if (!authInitialized) {
+        frame.innerHTML = `<div class="flex-1 flex items-center justify-center text-sm text-[#4b6e5e]">Loading authentication...</div>`;
+        return;
+    }
+
     if (!currentUser) {
         frame.innerHTML = renderSignInScreen();
         return;
@@ -589,7 +578,7 @@ function renderApp() {
             </div>
         </div>`;
 
-    let body = (roleView === 'MANAGER' && userIsMgr) ? renderManagerDashboard() : renderStaffExperience(me);
+    let body = (roleView === 'MANAGER' && userIsMgr) ? renderManagerDashboard() : renderStaffExperience(me || { name: 'Admin', luckyNumber: null, confirmedAt: null });
     frame.innerHTML = topBar + body;
 }
 
@@ -611,12 +600,10 @@ function renderSignInScreen() {
 }
 
 function renderStaffExperience(me) {
-    if (!me) return `<div class="p-5">Staff profile missing.</div>`;
-
     const tabs = `
         <div class="px-4 pt-3 bg-white border-b border-[#d1e8dc]">
             <div class="flex items-center gap-2.5 mb-2.5">
-                <div class="w-9 h-9 rounded-full bg-[#bce8d2] text-[#094228] font-bold flex items-center justify-center">${me.name.charAt(0)}</div>
+                <div class="w-9 h-9 rounded-full bg-[#bce8d2] text-[#094228] font-bold flex items-center justify-center">${esc(me.name.charAt(0))}</div>
                 <div>
                     <div class="font-extrabold text-base text-[#0e2e20]">Hello, ${esc(me.name)}</div>
                     <div class="text-xs text-[#4b6e5e]">${me.luckyNumber ? `Lucky Number #${pad2(me.luckyNumber)}` : 'Step 1 · Spin your number'}</div>
@@ -633,9 +620,6 @@ function renderStaffExperience(me) {
 }
 
 function renderMyLeaveTab(me) {
-    const activeStaff = getActiveParticipants();
-    const spunStaff = activeStaff.filter(s => s.luckyNumber !== null).sort((a,b)=>a.luckyNumber-b.luckyNumber);
-
     if (me.luckyNumber === null) {
         return `
             <div class="bg-[#f2fbf6] border border-[#bce8d2] rounded-2xl p-5 text-center mb-3">
