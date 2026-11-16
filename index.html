@@ -35,6 +35,14 @@
         const ADMIN_EMAIL = "medical.nah@gmail.com";
         const TOTAL_STAFF = 20;
 
+        // Default departmental staff list template
+        const DEFAULT_STAFF_LIST = [
+            "Staff 01", "Staff 02", "Staff 03", "Staff 04", "Staff 05",
+            "Staff 06", "Staff 07", "Staff 08", "Staff 09", "Staff 10",
+            "Staff 11", "Staff 12", "Staff 13", "Staff 14", "Staff 15",
+            "Staff 16", "Staff 17", "Staff 18", "Staff 19", "Staff 20"
+        ];
+
         function App() {
             const [user, setUser] = React.useState(null);
             const [loading, setLoading] = React.useState(true);
@@ -45,9 +53,7 @@
             
             // Spinning wheel state
             const [spinning, setSpinning] = React.useState(false);
-            const [displayNumber, setDisplayNumber] = React.useState("?");
-            
-            // Active view tab: 'spin', 'calendar', 'gantt'
+            const [displayNumber, setDisplayNumber] = React.useState("🎲");
             const [activeTab, setActiveTab] = React.useState("spin");
 
             React.useEffect(() => {
@@ -82,7 +88,6 @@
             const registerName = (e) => {
                 e.preventDefault();
                 if (!inputName.trim()) return;
-                
                 db.collection("fomu").doc("leaveData_2027").set({
                     names: { ...(leaveData.names || {}), [user.uid]: inputName.trim() }
                 }, { merge: true });
@@ -113,8 +118,48 @@
                 }, 100);
             };
 
+            // Manager feature: Spin / Assign number for any staff member instantly
+            const managerAssignSpinFor = (staffKey) => {
+                const currentSpins = leaveData.spins || {};
+                const takenNumbers = Object.values(currentSpins);
+                if (takenNumbers.length >= TOTAL_STAFF) {
+                    alert("All numbers have been assigned!");
+                    return;
+                }
+                let finalNum;
+                do {
+                    finalNum = Math.floor(Math.random() * TOTAL_STAFF) + 1;
+                } while (takenNumbers.includes(finalNum));
+
+                db.collection("fomu").doc("leaveData_2027").set({
+                    spins: { ...currentSpins, [staffKey]: finalNum }
+                }, { merge: true });
+            };
+
+            // Manager feature: Spin for all remaining unspun staff at once
+            const managerSpinAllRemaining = () => {
+                const currentSpins = leaveData.spins || {};
+                let updatedSpins = { ...currentSpins };
+                
+                DEFAULT_STAFF_LIST.forEach((staffName, idx) => {
+                    const key = `staff_${idx}`;
+                    if (!updatedSpins[key]) {
+                        const takenNumbers = Object.values(updatedSpins);
+                        let finalNum;
+                        do {
+                            finalNum = Math.floor(Math.random() * TOTAL_STAFF) + 1;
+                        } while (takenNumbers.includes(finalNum));
+                        updatedSpins[key] = finalNum;
+                    }
+                });
+
+                db.collection("fomu").doc("leaveData_2027").set({
+                    spins: updatedSpins
+                }, { merge: true });
+            };
+
             const resetAllData = () => {
-                if (window.confirm("Are you sure you want to reset all spins and records for the department?")) {
+                if (window.confirm("Are you sure you want to reset all department spins and records?")) {
                     db.collection("fomu").doc("leaveData_2027").set({ spins: {}, names: {}, leaves: {} });
                 }
             };
@@ -128,7 +173,7 @@
                     <div className="flex flex-col items-center justify-center min-h-screen bg-slate-900 p-4">
                         <div className="w-full max-w-md bg-slate-800 border border-slate-700 rounded-2xl shadow-xl p-8 text-center">
                             <h1 className="text-2xl font-bold text-emerald-400 mb-2">FOMU Annual Leave 2027</h1>
-                            <p className="text-slate-400 mb-8 text-sm">Department staff portal for lucky draw turn assignment & 30-day scheduling.</p>
+                            <p className="text-slate-400 mb-8 text-sm">Department staff portal for lucky draw turn assignment.</p>
                             <button 
                                 onClick={signInWithGoogle}
                                 className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 px-4 rounded-xl shadow-lg transition"
@@ -144,7 +189,6 @@
             const registeredName = leaveData.names?.[user.uid];
             const myNumber = leaveData.spins?.[user.uid];
 
-            // If logged in via Google but hasn't registered their department name yet:
             if (!registeredName && !isAdmin) {
                 return (
                     <div className="flex flex-col items-center justify-center min-h-screen bg-slate-900 p-4">
@@ -176,17 +220,21 @@
             }
 
             const displayName = isAdmin ? "Manager (Admin)" : registeredName;
-            const currentTurnCount = Object.keys(leaveData.spins || {}).length;
 
             return (
                 <div className="max-w-xl mx-auto bg-slate-900 min-h-screen text-slate-100 pb-12">
                     {/* Admin Top Status Bar */}
                     {isAdmin && (
                         <div className="bg-emerald-950 border-b border-emerald-800 px-4 py-2.5 flex justify-between items-center text-xs text-emerald-300">
-                            <span className="font-bold">👑 Department Manager Mode</span>
-                            <button onClick={resetAllData} className="bg-rose-900/80 hover:bg-rose-800 text-white px-2.5 py-1 rounded font-medium transition">
-                                Reset All Data
-                            </button>
+                            <span className="font-bold">👑 Manager Control Panel Active</span>
+                            <div className="flex gap-2">
+                                <button onClick={managerSpinAllRemaining} className="bg-emerald-700 hover:bg-emerald-600 text-white px-2.5 py-1 rounded font-medium transition">
+                                    Spin For All Remaining
+                                </button>
+                                <button onClick={resetAllData} className="bg-rose-900/80 hover:bg-rose-800 text-white px-2.5 py-1 rounded font-medium transition">
+                                    Reset All
+                                </button>
+                            </div>
                         </div>
                     )}
 
@@ -206,50 +254,37 @@
                         <div>
                             <h2 className="text-lg font-bold text-slate-100">{displayName}</h2>
                             <p className="text-xs text-emerald-400 font-medium">
-                                {isAdmin ? `Managing ${currentTurnCount} / ${TOTAL_STAFF} Staff Spun` : (myNumber ? `Assigned Lucky Number #${myNumber}` : "Pending Lucky Draw Spin")}
+                                {isAdmin ? "Master Manager Access" : (myNumber ? `Assigned Lucky Number #${myNumber}` : "Pending Lucky Draw Spin")}
                             </p>
                         </div>
                     </div>
 
                     {/* Navigation Tabs */}
                     <div className="flex px-4 gap-2 mb-4">
-                        <button 
-                            onClick={() => setActiveTab("spin")} 
-                            className={`flex-1 py-2.5 rounded-xl font-semibold text-xs transition ${activeTab === 'spin' ? 'bg-emerald-600 text-white shadow' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}
-                        >
-                            Lucky Draw & Turn
+                        <button onClick={() => setActiveTab("spin")} className={`flex-1 py-2.5 rounded-xl font-semibold text-xs transition ${activeTab === 'spin' ? 'bg-emerald-600 text-white shadow' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
+                            Lucky Draw Wheel
                         </button>
-                        <button 
-                            onClick={() => setActiveTab("calendar")} 
-                            className={`flex-1 py-2.5 rounded-xl font-semibold text-xs transition ${activeTab === 'calendar' ? 'bg-emerald-600 text-white shadow' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}
-                        >
+                        <button onClick={() => setActiveTab("calendar")} className={`flex-1 py-2.5 rounded-xl font-semibold text-xs transition ${activeTab === 'calendar' ? 'bg-emerald-600 text-white shadow' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
                             Leave Calendar
                         </button>
-                        <button 
-                            onClick={() => setActiveTab("gantt")} 
-                            className={`flex-1 py-2.5 rounded-xl font-semibold text-xs transition ${activeTab === 'gantt' ? 'bg-emerald-600 text-white shadow' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}
-                        >
+                        <button onClick={() => setActiveTab("gantt")} className={`flex-1 py-2.5 rounded-xl font-semibold text-xs transition ${activeTab === 'gantt' ? 'bg-emerald-600 text-white shadow' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
                             Gantt & Reports
                         </button>
                     </div>
 
-                    {/* Tab 1: Spin & Turn Order */}
+                    {/* Tab 1: Spin & Master Staff List */}
                     {activeTab === 'spin' && (
                         <div className="px-4 space-y-4">
                             {!isAdmin && !myNumber && (
                                 <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 text-center shadow-lg">
                                     <h3 className="font-bold text-slate-200 mb-2">Lucky Draw Turn Assignment</h3>
-                                    <p className="text-xs text-slate-400 mb-6">Spin the wheel to lock in your priority sequence number (1 to {TOTAL_STAFF}) for 2027 leave allocation.</p>
+                                    <p className="text-xs text-slate-400 mb-6">Spin the wheel to lock in your priority sequence number (1 to {TOTAL_STAFF}).</p>
                                     
                                     <div className="text-5xl font-black text-emerald-400 my-6 bg-slate-900/60 py-6 rounded-xl border border-slate-700">
                                         {spinning ? displayNumber : "🎲"}
                                     </div>
 
-                                    <button 
-                                        onClick={handleSpin}
-                                        disabled={spinning}
-                                        className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg transition duration-200"
-                                    >
+                                    <button onClick={handleSpin} disabled={spinning} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg transition">
                                         {spinning ? "Spinning Wheel..." : "Spin for my Number"}
                                     </button>
                                 </div>
@@ -258,49 +293,57 @@
                             {!isAdmin && myNumber && (
                                 <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 text-center shadow-lg">
                                     <h3 className="font-bold text-slate-200 mb-2">Your Turn is Locked!</h3>
-                                    <p className="text-sm text-emerald-400 font-semibold mb-2">Lucky Number #{myNumber}</p>
-                                    <p className="text-xs text-slate-400">Your number has been successfully recorded in the live department database.</p>
+                                    <p className="text-sm text-emerald-400 font-semibold mb-2">Lucky Number #${myNumber}</p>
+                                    <p className="text-xs text-slate-400">Your number is successfully recorded.</p>
                                 </div>
                             )}
 
-                            {isAdmin && (
-                                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 text-center shadow-lg">
-                                    <h3 className="font-bold text-slate-200 mb-2">Manager Overview</h3>
-                                    <p className="text-xs text-slate-400 mb-4">Monitor live staff participation below. You can reset records anytime using the top button.</p>
-                                    <div className="text-2xl font-bold text-emerald-400">{currentTurnCount} / {TOTAL_STAFF} Staff Completed Spin</div>
-                                </div>
-                            )}
-
-                            {/* Live Turn Order Table */}
+                            {/* Master Staff Roster & Manager Action View */}
                             <div className="mt-4">
-                                <h3 className="font-bold text-slate-400 mb-3 text-xs uppercase tracking-wider px-1">Live Department Turn Order</h3>
+                                <div className="flex justify-between items-center mb-3 px-1">
+                                    <h3 className="font-bold text-slate-400 text-xs uppercase tracking-wider">Department Staff Roster ({TOTAL_STAFF})</h3>
+                                    {isAdmin && <span className="text-xs text-emerald-400 font-medium">Manager Actions Enabled</span>}
+                                </div>
                                 <div className="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden shadow-lg">
-                                    {Object.keys(leaveData.spins || {}).length === 0 ? (
-                                        <div className="p-6 text-center text-xs text-slate-500">No staff have spun yet.</div>
-                                    ) : (
-                                        Object.entries(leaveData.spins).map(([uid, num]) => {
-                                            const name = leaveData.names?.[uid] || "Staff Member";
-                                            return (
-                                                <div key={uid} className="flex justify-between items-center p-3.5 border-b border-slate-700/50 last:border-none text-sm">
-                                                    <span className="font-medium text-slate-300">{name}</span>
-                                                    <span className="text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800/50 px-2.5 py-1 rounded-lg">
-                                                        #{num}
-                                                    </span>
+                                    {DEFAULT_STAFF_LIST.map((defaultName, idx) => {
+                                        const staffKey = `staff_${idx}`;
+                                        const assignedNum = leaveData.spins?.[staffKey];
+                                        return (
+                                            <div key={staffKey} className="flex justify-between items-center p-3.5 border-b border-slate-700/50 last:border-none text-sm">
+                                                <div>
+                                                    <span className="font-semibold text-slate-200">{idx + 1}. {defaultName}</span>
                                                 </div>
-                                            );
-                                        })
-                                    )}
+                                                <div className="flex items-center gap-3">
+                                                    {assignedNum ? (
+                                                        <span className="text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800/50 px-2.5 py-1 rounded-lg">
+                                                            #{assignedNum}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-xs text-slate-500 italic">Pending</span>
+                                                    )}
+                                                    {isAdmin && !assignedNum && (
+                                                        <button 
+                                                            onClick={() => managerAssignSpinFor(staffKey)}
+                                                            className="bg-emerald-700 hover:bg-emerald-600 text-white text-xs px-2.5 py-1 rounded shadow transition"
+                                                        >
+                                                            Spin For Staff
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* Tab 2: Calendar View */}
+                    {/* Tab 2: Calendar */}
                     {activeTab === 'calendar' && (
                         <div className="px-4 space-y-4">
                             <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 text-center shadow-lg">
                                 <h3 className="font-bold text-slate-200 mb-2">Annual Leave Calendar 2027</h3>
-                                <p className="text-xs text-slate-400 mb-4">Select and lock your 30-day working leave window based on your turn order priority.</p>
+                                <p className="text-xs text-slate-400 mb-4">Select and lock your 30-day working leave window.</p>
                                 <div className="p-8 bg-slate-900 rounded-xl border border-slate-700 text-slate-400 text-sm">
                                     📅 Interactive 30-day selector and holiday integration loaded.
                                 </div>
@@ -313,10 +356,10 @@
                         <div className="px-4 space-y-4">
                             <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 text-center shadow-lg">
                                 <h3 className="font-bold text-slate-200 mb-2">Team Gantt Chart & Exports</h3>
-                                <p className="text-xs text-slate-400 mb-6">Monitor daily department coverage and export official schedules to PDF and Excel formats.</p>
+                                <p className="text-xs text-slate-400 mb-6">Monitor daily coverage and export official schedules.</p>
                                 <div className="flex gap-2">
                                     <button onClick={() => alert("PDF Export generated successfully.")} className="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-200 py-2.5 rounded-xl text-xs font-semibold transition">
-                                        Export PDF Report
+                                        Export PDF
                                     </button>
                                     <button onClick={() => alert("Excel Workbook generated successfully.")} className="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-200 py-2.5 rounded-xl text-xs font-semibold transition">
                                         Export Excel (XLSX)
