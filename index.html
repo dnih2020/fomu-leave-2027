@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FOMU 2027 Annual Leave</title>
+    <title>FOMU Annual Leave 2027</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -32,11 +32,8 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        // Official 21 Staff Members Allowed List (Emails or Names)
-        const ALLOWED_STAFF = [
-            "admin", "afaa", "nafha", "uzain", "meesham", "asima"
-            // Add other authorized staff emails or names here
-        ];
+        // Put your manager/admin email here so you have full control
+        const ADMIN_EMAIL = "medical.nah@gmail.com";
 
         function App() {
             const [user, setUser] = React.useState(null);
@@ -84,7 +81,6 @@
                     counter++;
                     if (counter > 15) {
                         clearInterval(interval);
-                        // Pick final unique number
                         const currentSpins = leaveData.spins || {};
                         const takenNumbers = Object.values(currentSpins);
                         let finalNum;
@@ -93,15 +89,21 @@
                         } while (takenNumbers.includes(finalNum) && takenNumbers.length < 21);
 
                         db.collection("fomu").doc("leaveData_2027").set({
-                            spins: { ...currentSpins, [user.uid]: finalNum }
+                            spins: { ...currentSpins, [user.email || user.uid]: finalNum }
                         }, { merge: true });
                         setSpinning(false);
                     }
                 }, 100);
             };
 
+            const resetAllData = () => {
+                if (window.confirm("Are you sure you want to reset all spins and leave data?")) {
+                    db.collection("fomu").doc("leaveData_2027").set({ spins: {}, leaves: {} });
+                }
+            };
+
             if (loading) {
-                return <div className="flex items-center justify-center min-h-screen bg-slate-900 text-slate-400">Loading FOMU Portal...</div>;
+                return <div className="flex items-center justify-center min-h-screen bg-slate-900 text-slate-400">Loading Portal...</div>;
             }
 
             if (!user) {
@@ -109,10 +111,10 @@
                     <div className="flex flex-col items-center justify-center min-h-screen bg-slate-900 p-4">
                         <div className="w-full max-w-md bg-slate-800 border border-slate-700 rounded-2xl shadow-xl p-8 text-center">
                             <h1 className="text-2xl font-bold text-emerald-400 mb-2">FOMU Annual Leave 2027</h1>
-                            <p className="text-slate-400 mb-8 text-sm">Secure staff portal for lucky draw turn assignment and 30-day leave scheduling.</p>
+                            <p className="text-slate-400 mb-8 text-sm">Secure staff portal for lucky draw turn assignment.</p>
                             <button 
                                 onClick={signInWithGoogle}
-                                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 px-4 rounded-xl shadow-lg transition duration-200"
+                                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 px-4 rounded-xl shadow-lg transition"
                             >
                                 Sign in with Google
                             </button>
@@ -121,10 +123,21 @@
                 );
             }
 
-            const myNumber = leaveData.spins?.[user.uid];
+            const isAdmin = user.email === ADMIN_EMAIL;
+            const myNumber = leaveData.spins?.[user.email || user.uid];
 
             return (
                 <div className="max-w-xl mx-auto bg-slate-900 min-h-screen text-slate-100 pb-12">
+                    {/* Admin Top Status Bar */}
+                    {isAdmin && (
+                        <div className="bg-emerald-950 border-b border-emerald-800 px-4 py-2 flex justify-between items-center text-xs text-emerald-300">
+                            <span className="font-bold">👑 Manager / Admin Mode Active</span>
+                            <button onClick={resetAllData} className="bg-rose-900/80 hover:bg-rose-800 text-white px-2.5 py-1 rounded font-medium transition">
+                                Reset All Data
+                            </button>
+                        </div>
+                    )}
+
                     {/* Header */}
                     <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4 bg-slate-900/80 sticky top-0 backdrop-blur z-10">
                         <h1 className="font-bold text-emerald-400 tracking-wide">FOMU <span className="font-light text-slate-400">| Leave 2027</span></h1>
@@ -139,14 +152,14 @@
                             {user.displayName ? user.displayName.charAt(0).toUpperCase() : "U"}
                         </div>
                         <div>
-                            <h2 className="text-lg font-bold text-slate-100">{user.displayName}</h2>
+                            <h2 className="text-lg font-bold text-slate-100">{user.displayName || user.email}</h2>
                             <p className="text-xs text-emerald-400 font-medium">
-                                {myNumber ? `Assigned Lucky Number #${myNumber}` : "Pending Lucky Draw Spin"}
+                                {myNumber ? `Assigned Lucky Number #${myNumber}` : (isAdmin ? "Admin Account" : "Pending Lucky Draw Spin")}
                             </p>
                         </div>
                     </div>
 
-                    {/* Main Interactive Section */}
+                    {/* Main Spin Section */}
                     <div className="px-4">
                         {!myNumber ? (
                             <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 text-center shadow-lg">
@@ -162,14 +175,14 @@
                                     disabled={spinning}
                                     className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg transition duration-200"
                                 >
-                                    {spinning ? "Spinning..." : "Spin for my Number"}
+                                    {spinning ? "Spinning Wheel..." : "Spin for my Number"}
                                 </button>
                             </div>
                         ) : (
                             <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 text-center shadow-lg">
                                 <h3 className="font-bold text-slate-200 mb-2">Your Turn is Locked!</h3>
                                 <p className="text-sm text-emerald-400 font-semibold mb-2">Lucky Number #{myNumber}</p>
-                                <p className="text-xs text-slate-400">You will be able to select your 30-day window when your sequence order is reached.</p>
+                                <p className="text-xs text-slate-400">Your number has been successfully saved to the live database.</p>
                             </div>
                         )}
                     </div>
@@ -179,11 +192,11 @@
                         <h3 className="font-bold text-slate-400 mb-3 text-xs uppercase tracking-wider px-1">Live Team Turn Order</h3>
                         <div className="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden shadow-lg">
                             {Object.keys(leaveData.spins || {}).length === 0 ? (
-                                <div className="p-6 text-center text-xs text-slate-500">No staff have spun yet. Be the first!</div>
+                                <div className="p-6 text-center text-xs text-slate-500">No staff have spun yet.</div>
                             ) : (
-                                Object.entries(leaveData.spins).map(([uid, num], idx) => (
-                                    <div key={uid} className="flex justify-between items-center p-3.5 border-b border-slate-700/50 last:border-none text-sm">
-                                        <span className="font-medium text-slate-300">Staff Member ({uid.substring(0, 6)}...)</span>
+                                Object.entries(leaveData.spins).map(([identifier, num]) => (
+                                    <div key={identifier} className="flex justify-between items-center p-3.5 border-b border-slate-700/50 last:border-none text-sm">
+                                        <span className="font-medium text-slate-300">{identifier}</span>
                                         <span className="text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800/50 px-2.5 py-1 rounded-lg">
                                             #{num}
                                         </span>
