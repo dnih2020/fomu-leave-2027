@@ -3,24 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FOMU Annual Leave 2027</title>
+    <title>FOMU 2027 Annual Leave</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Firebase Libraries -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    
-    <!-- React & Babel -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
-<body class="bg-gray-100 text-gray-800 font-sans min-h-screen">
+<body class="bg-slate-900 text-slate-100 font-sans min-h-screen">
     <div id="root"></div>
 
     <script type="text/babel">
-        // 1. Live Firebase Configuration
+        // --- LIVE FIREBASE CONFIGURATION ---
         const firebaseConfig = {
             apiKey: "AIzaSyDGn5URPiTnGoEZPlijZsc6j8PPHhonOYc",
             authDomain: "fomu-leave-2027.firebaseapp.com",
@@ -30,20 +26,25 @@
             appId: "1:327078540006:web:484896982f0060960d8127"
         };
 
-        // 2. Initialize Firebase
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
         }
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        // 3. Main Application Component
+        // Official 21 Staff Members Allowed List (Emails or Names)
+        const ALLOWED_STAFF = [
+            "admin", "afaa", "nafha", "uzain", "meesham", "asima"
+            // Add other authorized staff emails or names here
+        ];
+
         function App() {
             const [user, setUser] = React.useState(null);
             const [loading, setLoading] = React.useState(true);
-            const [staffData, setStaffData] = React.useState({});
+            const [leaveData, setLeaveData] = React.useState({ spins: {}, leaves: {} });
+            const [spinning, setSpinning] = React.useState(false);
+            const [displayNumber, setDisplayNumber] = React.useState("?");
 
-            // Listen for Google Sign-In state
             React.useEffect(() => {
                 const unsubscribe = auth.onAuthStateChanged((currentUser) => {
                     setUser(currentUser);
@@ -52,13 +53,12 @@
                 return unsubscribe;
             }, []);
 
-            // Sync with Live Firestore Database
             React.useEffect(() => {
                 if (user) {
                     const unsubscribe = db.collection("fomu").doc("leaveData_2027")
                         .onSnapshot((doc) => {
                             if (doc.exists) {
-                                setStaffData(doc.data());
+                                setLeaveData(doc.data());
                             } else {
                                 db.collection("fomu").doc("leaveData_2027").set({ spins: {}, leaves: {} });
                             }
@@ -72,39 +72,47 @@
                 auth.signInWithPopup(provider).catch(error => alert("Login Error: " + error.message));
             };
 
-            const logOut = () => {
-                auth.signOut();
-            };
+            const logOut = () => auth.signOut();
 
             const handleSpin = () => {
                 if (!user) return;
-                // Generate a random lucky number (1-21) that hasn't been picked yet
-                const currentSpins = staffData.spins || {};
-                const takenNumbers = Object.values(currentSpins);
-                let newNumber;
-                do {
-                    newNumber = Math.floor(Math.random() * 21) + 1;
-                } while (takenNumbers.includes(newNumber) && takenNumbers.length < 21);
+                setSpinning(true);
+                
+                let counter = 0;
+                const interval = setInterval(() => {
+                    setDisplayNumber(Math.floor(Math.random() * 21) + 1);
+                    counter++;
+                    if (counter > 15) {
+                        clearInterval(interval);
+                        // Pick final unique number
+                        const currentSpins = leaveData.spins || {};
+                        const takenNumbers = Object.values(currentSpins);
+                        let finalNum;
+                        do {
+                            finalNum = Math.floor(Math.random() * 21) + 1;
+                        } while (takenNumbers.includes(finalNum) && takenNumbers.length < 21);
 
-                db.collection("fomu").doc("leaveData_2027").set({
-                    spins: { ...currentSpins, [user.uid]: newNumber }
-                }, { merge: true });
+                        db.collection("fomu").doc("leaveData_2027").set({
+                            spins: { ...currentSpins, [user.uid]: finalNum }
+                        }, { merge: true });
+                        setSpinning(false);
+                    }
+                }, 100);
             };
 
             if (loading) {
-                return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+                return <div className="flex items-center justify-center min-h-screen bg-slate-900 text-slate-400">Loading FOMU Portal...</div>;
             }
 
-            // --- LOGIN SCREEN ---
             if (!user) {
                 return (
-                    <div className="flex flex-col items-center justify-center min-h-screen bg-white p-4">
-                        <div className="w-full max-w-md bg-gray-50 border border-gray-200 rounded-xl shadow-sm p-8 text-center">
-                            <h1 className="text-2xl font-bold text-green-900 mb-2">FOMU Annual Leave 2027</h1>
-                            <p className="text-gray-500 mb-8">Sign in with your Google account to participate in the lucky draw and select your leave dates.</p>
+                    <div className="flex flex-col items-center justify-center min-h-screen bg-slate-900 p-4">
+                        <div className="w-full max-w-md bg-slate-800 border border-slate-700 rounded-2xl shadow-xl p-8 text-center">
+                            <h1 className="text-2xl font-bold text-emerald-400 mb-2">FOMU Annual Leave 2027</h1>
+                            <p className="text-slate-400 mb-8 text-sm">Secure staff portal for lucky draw turn assignment and 30-day leave scheduling.</p>
                             <button 
                                 onClick={signInWithGoogle}
-                                className="w-full bg-green-800 text-white font-semibold py-3 px-4 rounded-lg shadow hover:bg-green-700 transition"
+                                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 px-4 rounded-xl shadow-lg transition duration-200"
                             >
                                 Sign in with Google
                             </button>
@@ -113,89 +121,81 @@
                 );
             }
 
-            // --- MAIN APP SCREEN ---
-            const myLuckyNumber = staffData.spins?.[user.uid];
+            const myNumber = leaveData.spins?.[user.uid];
 
             return (
-                <div className="max-w-xl mx-auto bg-white min-h-screen shadow-md border-x border-gray-200">
-                    
+                <div className="max-w-xl mx-auto bg-slate-900 min-h-screen text-slate-100 pb-12">
                     {/* Header */}
-                    <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 bg-gray-50">
-                        <h1 className="text-lg font-bold text-gray-800">
-                            FOMU <span className="font-normal text-gray-500">| Annual Leave 2027</span>
-                        </h1>
-                        <button onClick={logOut} className="text-sm text-gray-500 hover:text-red-600 bg-gray-200 px-3 py-1 rounded-full">
+                    <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4 bg-slate-900/80 sticky top-0 backdrop-blur z-10">
+                        <h1 className="font-bold text-emerald-400 tracking-wide">FOMU <span className="font-light text-slate-400">| Leave 2027</span></h1>
+                        <button onClick={logOut} className="text-xs text-slate-400 hover:text-rose-400 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 transition">
                             Sign Out
                         </button>
                     </div>
 
-                    {/* Profile Section */}
-                    <div className="p-6 border-b border-gray-100 flex items-center gap-4">
-                        <div className="h-14 w-14 rounded-full bg-green-800 text-white flex items-center justify-center text-xl font-bold">
+                    {/* User Card */}
+                    <div className="p-6 m-4 bg-slate-800/60 border border-slate-700/80 rounded-2xl flex items-center gap-4 shadow-md">
+                        <div className="h-14 w-14 rounded-2xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-xl font-bold">
                             {user.displayName ? user.displayName.charAt(0).toUpperCase() : "U"}
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-gray-900">Hello, {user.displayName || "Staff Member"}</h2>
-                            <p className="text-sm font-medium text-gray-500">
-                                {myLuckyNumber ? `Lucky Number #${myLuckyNumber}` : "You have not spun yet."}
+                            <h2 className="text-lg font-bold text-slate-100">{user.displayName}</h2>
+                            <p className="text-xs text-emerald-400 font-medium">
+                                {myNumber ? `Assigned Lucky Number #${myNumber}` : "Pending Lucky Draw Spin"}
                             </p>
                         </div>
                     </div>
 
-                    {/* Action Tabs */}
-                    <div className="flex p-4 gap-2">
-                        <button className="flex-1 bg-green-900 text-white font-semibold py-2 rounded-lg shadow-sm">My leave</button>
-                        <button className="flex-1 bg-gray-100 text-gray-700 font-semibold py-2 rounded-lg border border-gray-200 hover:bg-gray-200 transition">Team calendar</button>
-                    </div>
+                    {/* Main Interactive Section */}
+                    <div className="px-4">
+                        {!myNumber ? (
+                            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 text-center shadow-lg">
+                                <h3 className="font-bold text-slate-200 mb-2">Lucky Draw Turn Assignment</h3>
+                                <p className="text-xs text-slate-400 mb-6">Spin the wheel to lock in your priority sequence number for 2027 leave allocation.</p>
+                                
+                                <div className="text-5xl font-black text-emerald-400 my-6 bg-slate-900/60 py-6 rounded-xl border border-slate-700">
+                                    {spinning ? displayNumber : "🎲"}
+                                </div>
 
-                    {/* Spin / Status Section */}
-                    <div className="p-4">
-                        {!myLuckyNumber ? (
-                            <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center">
-                                <h3 className="font-bold text-green-900 mb-2">It's time to get your turn!</h3>
-                                <p className="text-sm text-green-700 mb-4">Click below to randomly generate your lucky number (1-21) for the 2027 leave selection order.</p>
                                 <button 
                                     onClick={handleSpin}
-                                    className="bg-green-800 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-green-700"
+                                    disabled={spinning}
+                                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg transition duration-200"
                                 >
-                                    Spin for my number
+                                    {spinning ? "Spinning..." : "Spin for my Number"}
                                 </button>
                             </div>
                         ) : (
-                            <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 text-center">
-                                <h3 className="font-bold text-gray-900 mb-2">Waiting for your turn</h3>
-                                <p className="text-sm text-gray-600">The calendar will unlock for you to pick your 30 days once the staff members with earlier numbers confirm their dates.</p>
+                            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 text-center shadow-lg">
+                                <h3 className="font-bold text-slate-200 mb-2">Your Turn is Locked!</h3>
+                                <p className="text-sm text-emerald-400 font-semibold mb-2">Lucky Number #{myNumber}</p>
+                                <p className="text-xs text-slate-400">You will be able to select your 30-day window when your sequence order is reached.</p>
                             </div>
                         )}
                     </div>
 
-                    {/* Staff Turn Order List (Preview) */}
-                    <div className="p-4">
-                        <h3 className="font-bold text-gray-800 mb-3 text-sm uppercase tracking-wide">Turn Order (Live Sync)</h3>
-                        <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
-                            <div className="flex justify-between items-center p-3 border-b border-gray-100 bg-gray-50">
-                                <span className="font-semibold text-gray-700 text-sm">01. Admin</span>
-                                <span className="text-xs font-bold text-orange-600 bg-orange-100 px-2 py-1 rounded">Choosing now</span>
-                            </div>
-                            <div className="flex justify-between items-center p-3 border-b border-gray-100">
-                                <span className="font-medium text-gray-600 text-sm">02. Afaa</span>
-                                <span className="text-xs text-gray-400">Waiting</span>
-                            </div>
-                            <div className="flex justify-between items-center p-3 border-b border-gray-100">
-                                <span className="font-medium text-gray-600 text-sm">03. Nafha</span>
-                                <span className="text-xs text-gray-400">Waiting</span>
-                            </div>
-                            <div className="flex justify-between items-center p-3">
-                                <span className="font-medium text-gray-600 text-sm">04. Uzain</span>
-                                <span className="text-xs text-gray-400">Waiting</span>
-                            </div>
+                    {/* Live Turn Order Table */}
+                    <div className="p-4 mt-4">
+                        <h3 className="font-bold text-slate-400 mb-3 text-xs uppercase tracking-wider px-1">Live Team Turn Order</h3>
+                        <div className="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden shadow-lg">
+                            {Object.keys(leaveData.spins || {}).length === 0 ? (
+                                <div className="p-6 text-center text-xs text-slate-500">No staff have spun yet. Be the first!</div>
+                            ) : (
+                                Object.entries(leaveData.spins).map(([uid, num], idx) => (
+                                    <div key={uid} className="flex justify-between items-center p-3.5 border-b border-slate-700/50 last:border-none text-sm">
+                                        <span className="font-medium text-slate-300">Staff Member ({uid.substring(0, 6)}...)</span>
+                                        <span className="text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800/50 px-2.5 py-1 rounded-lg">
+                                            #{num}
+                                        </span>
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </div>
                 </div>
             );
         }
 
-        // 4. Render App
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
