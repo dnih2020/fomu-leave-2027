@@ -532,13 +532,30 @@ function validateCurrentLeaveForm(staffId) {
   }
   const totalWorking = c1.workingDays + c2.workingDays;
   let errorMsg = '';
-  if (!leaveForm.p1Start || !leaveForm.p1End) errorMsg = 'Select First leave period dates.';
-  else if (c1.workingDays <= 0) errorMsg = 'First period must have working days.';
-  else if (leaveForm.p2Enabled && leaveForm.p2Start && leaveForm.p2End) {
-    if (leaveForm.p1End >= leaveForm.p2Start) errorMsg = 'Periods cannot overlap.';
-    else if (c2.workingDays <= 0) errorMsg = 'Second period must have working days.';
+  if (!leaveForm.p1Start || !leaveForm.p1End) {
+    errorMsg = 'Select First leave period dates.';
+  } else if (c1.workingDays <= 0) {
+    errorMsg = 'First period must have working days.';
+  } else if (leaveForm.p2Enabled && leaveForm.p2Start && leaveForm.p2End) {
+    if (!leaveForm.p2Start || !leaveForm.p2End) {
+      errorMsg = 'Select Second leave period dates.';
+    } else if (c2.workingDays <= 0) {
+      errorMsg = 'Second period must have working days.';
+    } else {
+      // Fixed chronological overlap validation check
+      const p1Start = leaveForm.p1Start;
+      const p1End = leaveForm.p1End;
+      const p2Start = leaveForm.p2Start;
+      const p2End = leaveForm.p2End;
+      const overlap = !(p1End < p2Start || p2End < p1Start);
+      if (overlap) {
+        errorMsg = 'Periods cannot overlap.';
+      }
+    }
   }
-  if (!errorMsg && totalWorking !== ENTITLEMENT_DAYS) errorMsg = `Total working days must equal 30 (currently ${totalWorking}).`;
+  if (!errorMsg && totalWorking !== ENTITLEMENT_DAYS) {
+    errorMsg = `Total working days must equal 30 (currently ${totalWorking}).`;
+  }
   return { c1, c2, totalWorking, errorMsg, canConfirm: !errorMsg && totalWorking === ENTITLEMENT_DAYS };
 }
 
@@ -550,7 +567,7 @@ async function confirmLeaveSelection() {
   await runAtomicPlannerUpdate((draft) => {
     const target = draft.staff.find(s => s.id === me.id);
     target.period1 = { start: leaveForm.p1Start, end: leaveForm.p1End };
-    target.period2 = leaveForm.p2Enabled && leaveForm.p2Start ? { start: leaveForm.p2Start, end: leaveForm.p2End } : null;
+    target.period2 = leaveForm.p2Enabled && leaveForm.p2Start && leaveForm.p2End ? { start: leaveForm.p2Start, end: leaveForm.p2End } : null;
     target.confirmedAt = new Date().toISOString();
     draft.activity.unshift({ at: new Date().toISOString(), actor: currentUser.email, text: `${target.name} confirmed 30 working days` });
   }, 'Leave dates confirmed successfully!');
@@ -781,6 +798,18 @@ function downloadExcelExport() {
     ]);
   });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryRows), 'Staff Summary');
+
+  const holMap = {};
+  state.holidays.forEach(h => { holMap[h.date] = h.name; });
+  const dailyRows = [['Date', 'Day', 'Holiday Name', 'Booked Count', 'Daily Limit', 'Staff on Leave']];
+  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  eachDateInRange('2027-01-01', '2027-12-31', d => {
+    const dow = dayNames[parseIsoUTC(d).getUTCDay()];
+    const onLeave = getStaffOnLeaveOnDate(d);
+    dailyRows.push([d, dow, holMap[d] || '', onLeave.length, getDailyLimit(d), onLeave.join(', ')]);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dailyRows), '365 Day Calendar');
+
   XLSX.writeFile(wb, `${EXPORT_TITLE} (${statusTag}).xlsx`);
   showToast('Downloaded Excel workbook!');
 }
