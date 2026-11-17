@@ -279,6 +279,7 @@ if (!firebase.apps.length) {
 }
 const auth = firebase.auth();
 const db = firebase.firestore();
+const plannerDocRef = db.collection('fomu').doc('leaveData_2027');
 
 const EXPORT_TITLE = 'FOMU 2027 Annual Leave calendar';
 const MANAGER_EMAILS = ['medical.nah@gmail.com', 'sarahaindh@gmail.com'];
@@ -373,9 +374,61 @@ function createFreshState() {
   };
 }
 
+function normalizeServerState(data) {
+  const fresh = createFreshState();
+  if (!data || typeof data !== 'object') return fresh;
+
+  const serverStaff = Array.isArray(data.staff) ? data.staff : [];
+  const mergedStaff = INITIAL_STAFF.map(initMember => {
+    const found = serverStaff.find(x => Number(x.id) === initMember.id) ||
+                  serverStaff.find(x => String(x.email || '').toLowerCase() === initMember.email.toLowerCase());
+    if (!found) {
+      return {
+        id: initMember.id,
+        name: initMember.name,
+        email: initMember.email.toLowerCase(),
+        canSpin: initMember.canSpin,
+        luckyNumber: null,
+        spunAt: null,
+        period1: null,
+        period2: null,
+        confirmedAt: null,
+        needsHolidayReview: false
+      };
+    }
+    return {
+      id: initMember.id,
+      name: found.name || initMember.name,
+      email: String(found.email || initMember.email).toLowerCase(),
+      canSpin: found.canSpin !== false,
+      luckyNumber: (found.luckyNumber !== undefined && found.luckyNumber !== null) ? Number(found.luckyNumber) : null,
+      spunAt: found.spunAt || null,
+      period1: found.period1 || null,
+      period2: found.period2 || null,
+      confirmedAt: found.confirmedAt || null,
+      needsHolidayReview: Boolean(found.needsHolidayReview)
+    };
+  });
+
+  return {
+    ...fresh,
+    ...data,
+    staff: mergedStaff,
+    monthLimits: data.monthLimits || { ...INITIAL_MONTH_LIMITS },
+    dateLimits: data.dateLimits || {},
+    holidays: Array.isArray(data.holidays) ? data.holidays : INITIAL_HOLIDAYS.map(h => ({ ...h })),
+    archives: Array.isArray(data.archives) ? data.archives : [],
+    activity: Array.isArray(data.activity) ? data.activity : []
+  };
+}
+
 let state = createFreshState();
 let currentUser = null;
 let authInitialized = false;
+let cloudSynced = false;
+let cloudError = '';
+let unsubscribeSnapshot = null;
+
 let roleView = 'STAFF'; // 'STAFF' | 'MANAGER'
 let staffTab = 'MY_LEAVE'; // 'MY_LEAVE' | 'TEAM_CAL'
 let managerSub = 'MAIN'; // 'MAIN' | 'STAFF_CONTROL' | 'HOLIDAYS' | 'MONTH_LIMITS' | 'GANTT'
@@ -395,52 +448,104 @@ let leaveForm = {
 };
 
 // ============================================================================
-// 2. REAL-TIME FIRESTORE & AUTH SYNC
+// 2. AUTHENTICATED REAL-TIME FIRESTORE SYNC & ATOMIC TRANSACTIONS
 // ============================================================================
+function startFirestoreSync() {
+  if (unsubscribeSnapshot) {
+    unsubscribeSnapshot();
+    unsubscribeSnapshot = null;
+  }
+
+  unsubscribeSnapshot = plannerDocRef.onSnapshot(
+    (doc) => {
+      cloudError = '';
+      if (doc.exists) {
+        state = normalizeServerState(doc.data());
+        cloudSynced = true;
+        renderApp();
+        refreshOpenGanttModal();
+      } else {
+        // Initialize only inside a transaction so an empty read never wipes an existing doc
+        db.runTransaction(async (tx) => {
+          const snap = await tx.get(plannerDocRef);
+          if (!snap.exists) {
+            const initial = createFreshState();
+            tx.set(plannerDocRef, initial);
+            return initial;
+          }
+          return normalizeServerState(snap.data());
+        }).then((resolvedState) => {
+          if (resolvedState) state = resolvedState;
+          cloudSynced = true;
+          renderApp();
+          refreshOpenGanttModal();
+        }).catch((err) => {
+          console.error('Initial doc check error:', err);
+        });
+      }
+    },
+    (err) => {
+      console.error('Firestore listener error:', err);
+      cloudError = err.message || 'Unable to sync with cloud database.';
+      renderApp();
+    }
+  );
+}
+
 auth.onAuthStateChanged((user) => {
   currentUser = user;
   authInitialized = true;
+  if (user) {
+    startFirestoreSync();
+  } else {
+    if (unsubscribeSnapshot) {
+      unsubscribeSnapshot();
+      unsubscribeSnapshot = null;
+    }
+    cloudSynced = false;
+  }
   renderApp();
 });
 
-db.collection('fomu').doc('leaveData_2027').onSnapshot((doc) => {
-  if (doc.exists) {
-    const data = doc.data();
-    state = {
-      ...createFreshState(),
-      ...data,
-      monthLimits: data.monthLimits || { ...INITIAL_MONTH_LIMITS },
-      dateLimits: data.dateLimits || {},
-      holidays: Array.isArray(data.holidays) ? data.holidays : INITIAL_HOLIDAYS.map(h => ({ ...h })),
-      archives: Array.isArray(data.archives) ? data.archives : [],
-      activity: Array.isArray(data.activity) ? data.activity : []
-    };
-    renderApp();
-    refreshOpenGanttModal();
-  } else {
-    db.collection('fomu').doc('leaveData_2027').set(createFreshState());
-  }
-});
-
-async function saveStateToFirestore() {
-  state.revision = (state.revision || 1) + 1;
-  await db.collection('fomu').doc('leaveData_2027').set(JSON.parse(JSON.stringify(state)));
-}
-
+// True Atomic Firestore Transaction: Always reads latest server state before applying user's change
 async function runAtomicPlannerUpdate(mutatorFn, successToastMsg = '') {
+  if (!currentUser) {
+    showToast('Please sign in with Google first.', 'err');
+    throw new Error('Not signed in');
+  }
+  if (!cloudSynced) {
+    showToast('Still syncing live data from cloud. Please wait a moment.', 'warn');
+    throw new Error('Cloud not synced yet');
+  }
+
   try {
-    const draft = JSON.parse(JSON.stringify(state));
-    mutatorFn(draft);
-    if (Array.isArray(draft.activity) && draft.activity.length > 120) {
-      draft.activity = draft.activity.slice(0, 120);
-    }
-    state = draft;
-    await saveStateToFirestore();
+    let resultVal;
+    const committedState = await db.runTransaction(async (transaction) => {
+      const sfDoc = await transaction.get(plannerDocRef);
+      const latestDraft = sfDoc.exists
+        ? normalizeServerState(sfDoc.data())
+        : createFreshState();
+
+      resultVal = mutatorFn(latestDraft);
+
+      latestDraft.revision = (latestDraft.revision || 1) + 1;
+      if (Array.isArray(latestDraft.activity) && latestDraft.activity.length > 120) {
+        latestDraft.activity = latestDraft.activity.slice(0, 120);
+      }
+
+      transaction.set(plannerDocRef, JSON.parse(JSON.stringify(latestDraft)));
+      return latestDraft;
+    });
+
+    state = committedState;
+    cloudSynced = true;
     renderApp();
     refreshOpenGanttModal();
     if (successToastMsg) showToast(successToastMsg);
+    return resultVal;
   } catch (err) {
-    showToast(err.message || 'Could not complete action.', 'err');
+    showToast(err.message || 'Could not save to cloud. Please try again.', 'err');
+    throw err;
   }
 }
 
@@ -601,6 +706,7 @@ function handleSignOut() {
 
 function handleSpinClick() {
   if (isSpinning) return;
+  if (!cloudSynced) return showToast('Syncing live data from cloud, please wait a second...', 'warn');
   const me = getCurrentUserRecord();
   if (!me) return showToast('Staff profile not found for this email.', 'err');
   if (state.finalized) return showToast('Calendar is finalised and locked.', 'err');
@@ -623,33 +729,44 @@ function handleSpinClick() {
   if (wheelEl) wheelEl.style.transform = `rotate(${wheelAngle}deg)`;
 
   let ticks = 0;
-  const rollInterval = setInterval(() => {
+  const rollInterval = setInterval(async () => {
     ticks++;
     if (hubEl && pool.length > 0) {
       hubEl.textContent = pad2(pool[Math.floor(Math.random() * pool.length)]);
     }
     if (ticks >= 13) {
       clearInterval(rollInterval);
-      runAtomicPlannerUpdate((draft) => {
-        const target = draft.staff.find(s => s.id === me.id);
-        if (!target || target.luckyNumber !== null) return;
-        const activeList = draft.staff.filter(s => s.canSpin !== false);
-        const taken = new Set(activeList.map(s => s.luckyNumber).filter(n => n !== null));
-        const avail = [];
-        for (let i = 1; i <= activeList.length; i++) {
-          if (!taken.has(i)) avail.push(i);
-        }
-        if (avail.length === 0) throw new Error('All numbers assigned.');
-        const chosen = avail[Math.floor(Math.random() * avail.length)];
-        target.luckyNumber = chosen;
-        target.spunAt = new Date().toISOString();
-        draft.activity.unshift({
-          at: new Date().toISOString(),
-          actor: currentUser.email,
-          text: `${target.name} spun lucky number #${pad2(chosen)}`
+      try {
+        const assignedNum = await runAtomicPlannerUpdate((draft) => {
+          const target = draft.staff.find(s => s.id === me.id);
+          if (!target) throw new Error('Staff profile not found.');
+          if (target.luckyNumber !== null) return target.luckyNumber;
+
+          const activeList = draft.staff.filter(s => s.canSpin !== false);
+          const taken = new Set(activeList.map(s => s.luckyNumber).filter(n => n !== null));
+          const avail = [];
+          for (let i = 1; i <= activeList.length; i++) {
+            if (!taken.has(i)) avail.push(i);
+          }
+          if (avail.length === 0) throw new Error('All lucky numbers have been assigned.');
+
+          const chosen = avail[Math.floor(Math.random() * avail.length)];
+          target.luckyNumber = chosen;
+          target.spunAt = new Date().toISOString();
+          draft.activity.unshift({
+            at: new Date().toISOString(),
+            actor: currentUser.email,
+            text: `${target.name} spun lucky number #${pad2(chosen)}`
+          });
+          return chosen;
         });
-      }, 'Lucky number assigned!');
-      isSpinning = false;
+        isSpinning = false;
+        showToast(`You got Lucky Number #${pad2(assignedNum)}!`);
+        renderApp();
+      } catch (e) {
+        isSpinning = false;
+        renderApp();
+      }
     }
   }, 80);
 }
@@ -749,6 +866,7 @@ function validateCurrentLeaveForm(staffId) {
 }
 
 async function confirmLeaveSelection() {
+  if (!cloudSynced) return showToast('Syncing live data from cloud, please wait...', 'warn');
   const me = getCurrentUserRecord();
   if (!me) return;
   const check = validateCurrentLeaveForm(me.id);
@@ -761,13 +879,22 @@ async function confirmLeaveSelection() {
 
   await runAtomicPlannerUpdate((draft) => {
     if (draft.finalized) throw new Error('Calendar is finalised and locked.');
+    const turn = getCurrentTurnMember(draft);
     const target = draft.staff.find(s => s.id === me.id);
     if (!target) throw new Error('Staff profile not found.');
+    if (target.confirmedAt) throw new Error('Your leave dates are already confirmed.');
+    if (!turn || turn.id !== target.id) {
+      throw new Error(`It is currently ${turn ? turn.name + ' (#' + pad2(turn.luckyNumber) + ')' : 'another colleague'}'s turn.`);
+    }
 
     const calc1 = calculateWorkingDays(p1Payload.start, p1Payload.end, draft.holidays);
     const calc2 = p2Payload
       ? calculateWorkingDays(p2Payload.start, p2Payload.end, draft.holidays)
       : { valid: true, workingDays: 0, dates: [] };
+
+    if (calc1.workingDays + calc2.workingDays !== ENTITLEMENT_DAYS) {
+      throw new Error('Total working days must equal 30.');
+    }
 
     const allDates = [...calc1.dates, ...calc2.dates];
     for (const d of allDates) {
@@ -1295,6 +1422,23 @@ function renderApp() {
     return;
   }
 
+  // Wait until Firebase confirms live cloud state before showing interactive buttons
+  if (!cloudSynced) {
+    frame.innerHTML = `
+      <div class="signin-bg flex-1 flex flex-col items-center justify-center p-6 text-center">
+        <div class="w-12 h-12 rounded-full border-4 border-indigo-200 border-t-indigo-600 animate-spin mb-4"></div>
+        <div class="font-extrabold text-base text-slate-900 mb-1">Syncing Live Department Data…</div>
+        <p class="text-xs text-slate-500 max-w-xs">Connecting to Firebase so your spins and leave dates are safely locked in real time.</p>
+        ${cloudError ? `
+          <div class="mt-4 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold p-3 rounded-2xl">
+            ${esc(cloudError)}
+          </div>
+          <button onclick="startFirestoreSync()" class="mt-3 px-4 py-2 btn-liquid-primary text-xs font-extrabold">Retry Sync</button>
+        ` : ''}
+      </div>`;
+    return;
+  }
+
   const me = getCurrentUserRecord();
   const userIsMgr = isManager(currentUser.email);
 
@@ -1318,6 +1462,7 @@ function renderApp() {
         <span class="font-extrabold text-base bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">FOMU</span>
         <span class="text-slate-300">|</span>
         <span class="font-bold text-xs text-slate-700">Leave 2027</span>
+        <span class="w-2 h-2 rounded-full bg-emerald-500 ml-1" title="Live Cloud Synced"></span>
       </div>
       <div class="flex items-center gap-2">
         ${userIsMgr ? `
