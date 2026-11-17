@@ -13,30 +13,24 @@
   <!-- jsPDF & XLSX for PDF/Excel Exports -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-outer: #e4f5ed;
-      --surface: #ffffff;
-      --mint-50: #f2fbf6;
-      --mint-100: #dff5e9;
-      --mint-200: #bce8d2;
-      --mint-500: #1b8a5a;
-      --mint-600: #137348;
-      --mint-700: #0d5c38;
-      --mint-800: #094228;
-      --ink: #0e2e20;
-      --muted: #4b6e5e;
-      --border: #d1e8dc;
+      --bg-outer: #eef2ff;
+      --surface: #f8fafc;
+      --ink: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --primary-grad: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%);
     }
     * {
       box-sizing: border-box;
       -webkit-tap-highlight-color: transparent;
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     }
     body {
       margin: 0;
-      background-color: var(--bg-outer);
+      background: radial-gradient(circle at 15% 15%, #e0e7ff 0%, #f3e8ff 45%, #fce7f3 100%);
       color: var(--ink);
       min-height: 100vh;
       display: flex;
@@ -45,101 +39,212 @@
     }
     .phone-frame {
       width: 100%;
-      max-width: 430px;
+      max-width: 440px;
       min-height: 100vh;
-      background: var(--surface);
+      background: rgba(255, 255, 255, 0.86);
+      backdrop-filter: blur(20px);
       display: flex;
       flex-direction: column;
       position: relative;
-      box-shadow: 0 16px 40px rgba(9, 66, 40, 0.14);
+      box-shadow: 0 24px 60px rgba(79, 70, 229, 0.16);
     }
     @media (min-width: 480px) {
-      body { padding: 12px 8px 28px; }
+      body { padding: 14px 8px 32px; }
       .phone-frame {
-        min-height: 820px;
-        border-radius: 30px;
-        border: 2px solid var(--mint-200);
+        min-height: 840px;
+        border-radius: 36px;
+        border: 2px solid rgba(255, 255, 255, 0.9);
         overflow: hidden;
       }
     }
     .signin-bg {
       background:
-        radial-gradient(115% 28% at 88% 0%, #96dfc0 0%, #c8f0de 50%, transparent 51%),
-        radial-gradient(125% 28% at 18% 100%, #8ed8b7 0%, #bcebd6 54%, transparent 55%),
-        #ffffff;
+        radial-gradient(90% 40% at 90% 0%, rgba(167, 139, 250, 0.35) 0%, transparent 70%),
+        radial-gradient(90% 40% at 10% 100%, rgba(244, 114, 182, 0.3) 0%, transparent 70%),
+        linear-gradient(180deg, #ffffff 0%, #f5f3ff 100%);
     }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(12px);
+      border: 1.5px solid rgba(226, 232, 240, 0.9);
+      border-radius: 24px;
+      box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.07), 0 4px 10px -2px rgba(0, 0, 0, 0.03);
+    }
+    .glass-Tint {
+      background: linear-gradient(135deg, rgba(238, 242, 255, 0.9) 0%, rgba(245, 243, 255, 0.9) 100%);
+      border: 1.5px solid rgba(199, 210, 254, 0.8);
+      border-radius: 24px;
+    }
+
+    /* Liquid Glossy 3D Buttons */
+    .btn-liquid-primary {
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 55%, #db2777 100%);
+      color: #ffffff;
+      border: none;
+      border-radius: 18px;
+      position: relative;
+      overflow: hidden;
+      box-shadow:
+        0 10px 20px -4px rgba(124, 58, 237, 0.45),
+        inset 0 2px 2px rgba(255, 255, 255, 0.45),
+        inset 0 -3px 6px rgba(0, 0, 0, 0.2);
+      transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .btn-liquid-primary:hover:not(:disabled) {
+      transform: translateY(-1.5px);
+      box-shadow:
+        0 14px 24px -4px rgba(124, 58, 237, 0.55),
+        inset 0 2px 3px rgba(255, 255, 255, 0.6),
+        inset 0 -3px 6px rgba(0, 0, 0, 0.2);
+    }
+    .btn-liquid-teal {
+      background: linear-gradient(135deg, #0d9488 0%, #10b981 55%, #34d399 100%);
+      color: #ffffff;
+      border: none;
+      border-radius: 16px;
+      box-shadow:
+        0 8px 18px -4px rgba(16, 185, 129, 0.4),
+        inset 0 2px 2px rgba(255, 255, 255, 0.45),
+        inset 0 -3px 5px rgba(0, 0, 0, 0.15);
+      transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .btn-liquid-amber {
+      background: linear-gradient(135deg, #f59e0b 0%, #f97316 55%, #ea580c 100%);
+      color: #ffffff;
+      border: none;
+      border-radius: 16px;
+      box-shadow:
+        0 8px 18px -4px rgba(249, 115, 22, 0.4),
+        inset 0 2px 2px rgba(255, 255, 255, 0.45),
+        inset 0 -3px 5px rgba(0, 0, 0, 0.15);
+      transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .btn-liquid-danger {
+      background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+      color: #ffffff;
+      border: none;
+      border-radius: 16px;
+      box-shadow:
+        0 8px 18px -4px rgba(225, 29, 72, 0.38),
+        inset 0 2px 2px rgba(255, 255, 255, 0.4),
+        inset 0 -3px 5px rgba(0, 0, 0, 0.2);
+      transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .btn-liquid-soft {
+      background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+      color: #334155;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 16px;
+      box-shadow:
+        0 4px 10px rgba(15, 23, 42, 0.05),
+        inset 0 2px 1px #ffffff;
+      transition: all 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .btn-liquid-soft:hover:not(:disabled) {
+      border-color: #818cf8;
+      color: #4f46e5;
+      background: linear-gradient(180deg, #ffffff 0%, #eef2ff 100%);
+    }
+
+    button, .cal-tap {
+      cursor: pointer;
+      user-select: none;
+      transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.12s ease;
+    }
+    button:not(:disabled):active, .cal-tap:active {
+      transform: scale(0.95) translateY(2px) !important;
+      filter: brightness(0.94);
+    }
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+      filter: grayscale(0.2);
+    }
+
+    /* Modern Candy Spinning Wheel */
     .wheel-ring {
-      width: 204px;
-      height: 204px;
+      width: 212px;
+      height: 212px;
       border-radius: 50%;
-      border: 8px solid var(--mint-500);
+      border: 8px solid #ffffff;
       background: repeating-conic-gradient(
         from 0deg,
-        #95dec0 0deg 30deg,
-        #cbf2e1 30deg 60deg
+        #818cf8 0deg 30deg,
+        #c084fc 30deg 60deg,
+        #f472b6 60deg 90deg,
+        #38bdf8 90deg 120deg
       );
       position: relative;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 8px 24px rgba(13, 92, 56, 0.18);
-      transition: transform 1.2s cubic-bezier(0.16, 0.88, 0.28, 1.05);
+      box-shadow:
+        0 16px 36px rgba(124, 58, 237, 0.28),
+        0 0 0 4px rgba(199, 210, 254, 0.6),
+        inset 0 4px 12px rgba(255, 255, 255, 0.5);
+      transition: transform 1.25s cubic-bezier(0.16, 0.88, 0.28, 1.05);
     }
     .wheel-hub {
-      width: 74px;
-      height: 74px;
+      width: 80px;
+      height: 80px;
       border-radius: 50%;
-      background: var(--mint-800);
+      background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
       color: #ffffff;
       font-weight: 800;
-      font-size: 1.15rem;
+      font-size: 1.2rem;
       display: flex;
       align-items: center;
       justify-content: center;
-      border: 3.5px solid #ffffff;
-      box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+      border: 4px solid #ffffff;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25), inset 0 2px 4px rgba(255, 255, 255, 0.3);
       z-index: 2;
     }
+
     input[type="date"], input[type="email"], input[type="text"], input[type="number"], select {
-      border: 1.5px solid var(--border);
-      border-radius: 10px;
-      padding: 9px 11px;
-      font-size: 0.875rem;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 14px;
+      padding: 9px 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
       color: var(--ink);
       background: #ffffff;
       width: 100%;
       outline: none;
+      box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.03);
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
     input:focus, select:focus {
-      border-color: var(--mint-500);
-      box-shadow: 0 0 0 2px rgba(27, 138, 90, 0.15);
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
     }
-    button, .cal-tap {
-      transition: transform 0.08s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.12s ease, box-shadow 0.12s ease, filter 0.1s ease;
-      cursor: pointer;
-      user-select: none;
+
+    /* Cute Gantt Pill Styling */
+    .gantt-pill-p1 {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.45);
+      box-shadow: 0 3px 8px rgba(16, 185, 129, 0.32), inset 0 1px 1px rgba(255, 255, 255, 0.4);
     }
-    button:not(:disabled):active, .cal-tap:active {
-      transform: scale(0.96) translateY(1.5px) !important;
-      box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.18) !important;
-      filter: brightness(0.92);
+    .gantt-pill-p2 {
+      background: linear-gradient(135deg, #f59e0b 0%, #ec4899 100%);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.45);
+      box-shadow: 0 3px 8px rgba(236, 72, 153, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.4);
     }
-    button:disabled {
-      cursor: not-allowed;
-    }
+
     .toast-msg {
       position: fixed;
-      bottom: 20px;
+      bottom: 22px;
       left: 50%;
       transform: translateX(-50%);
       max-width: 390px;
       width: calc(100% - 32px);
       z-index: 100;
-      border-radius: 14px;
-      padding: 12px 16px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.18);
+      border-radius: 18px;
+      padding: 13px 18px;
+      font-size: 0.84rem;
+      font-weight: 700;
+      box-shadow: 0 16px 32px rgba(15, 23, 42, 0.22);
       transition: opacity 0.25s ease;
     }
   </style>
@@ -149,9 +254,9 @@
   <div class="phone-frame" id="appFrame"></div>
   <div id="toastBox" class="toast-msg hidden"></div>
 
-  <!-- Full-Screen Landscape Gantt Chart Modal -->
-  <div id="ganttFullModal" class="fixed inset-0 bg-[#0b1f36]/80 backdrop-blur-xs z-50 hidden flex-col items-center justify-start p-2 sm:p-5 overflow-y-auto">
-    <div class="w-full max-w-[1220px] bg-white rounded-2xl shadow-2xl border border-[#b8cce0] overflow-hidden my-auto">
+  <!-- Full-Screen Cute Landscape Gantt Chart Modal -->
+  <div id="ganttFullModal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm z-50 hidden flex-col items-center justify-start p-2 sm:p-6 overflow-y-auto">
+    <div class="w-full max-w-[1240px] bg-white rounded-3xl shadow-2xl border-2 border-indigo-100 overflow-hidden my-auto">
       <div id="ganttFullModalContent"></div>
     </div>
   </div>
@@ -161,22 +266,22 @@
 // 1. LIVE FIREBASE CONFIGURATION & DATA INITIALIZATION
 // ============================================================================
 const firebaseConfig = {
-    apiKey: "AIzaSyDGn5URPiTnGoEZPlijZsc6j8PPHhonOYc",
-    authDomain: "fomu-leave-2027.firebaseapp.com",
-    projectId: "fomu-leave-2027",
-    storageBucket: "fomu-leave-2027.firebasestorage.app",
-    messagingSenderId: "327078540006",
-    appId: "1:327078540006:web:484896982f0060960d8127"
+  apiKey: "AIzaSyDGn5URPiTnGoEZPlijZsc6j8PPHhonOYc",
+  authDomain: "fomu-leave-2027.firebaseapp.com",
+  projectId: "fomu-leave-2027",
+  storageBucket: "fomu-leave-2027.firebasestorage.app",
+  messagingSenderId: "327078540006",
+  appId: "1:327078540006:web:484896982f0060960d8127"
 };
 
 if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
+  firebase.initializeApp(firebaseConfig);
 }
 const auth = firebase.auth();
 const db = firebase.firestore();
 
 const EXPORT_TITLE = 'FOMU 2027 Annual Leave calendar';
-const MANAGER_EMAIL = 'medical.nah@gmail.com';
+const MANAGER_EMAILS = ['medical.nah@gmail.com', 'sarahaindh@gmail.com'];
 const ENTITLEMENT_DAYS = 30;
 
 const INITIAL_STAFF = [
@@ -300,8 +405,18 @@ auth.onAuthStateChanged((user) => {
 
 db.collection('fomu').doc('leaveData_2027').onSnapshot((doc) => {
   if (doc.exists) {
-    state = doc.data();
+    const data = doc.data();
+    state = {
+      ...createFreshState(),
+      ...data,
+      monthLimits: data.monthLimits || { ...INITIAL_MONTH_LIMITS },
+      dateLimits: data.dateLimits || {},
+      holidays: Array.isArray(data.holidays) ? data.holidays : INITIAL_HOLIDAYS.map(h => ({ ...h })),
+      archives: Array.isArray(data.archives) ? data.archives : [],
+      activity: Array.isArray(data.activity) ? data.activity : []
+    };
     renderApp();
+    refreshOpenGanttModal();
   } else {
     db.collection('fomu').doc('leaveData_2027').set(createFreshState());
   }
@@ -316,9 +431,13 @@ async function runAtomicPlannerUpdate(mutatorFn, successToastMsg = '') {
   try {
     const draft = JSON.parse(JSON.stringify(state));
     mutatorFn(draft);
+    if (Array.isArray(draft.activity) && draft.activity.length > 120) {
+      draft.activity = draft.activity.slice(0, 120);
+    }
     state = draft;
     await saveStateToFirestore();
     renderApp();
+    refreshOpenGanttModal();
     if (successToastMsg) showToast(successToastMsg);
   } catch (err) {
     showToast(err.message || 'Could not complete action.', 'err');
@@ -326,7 +445,7 @@ async function runAtomicPlannerUpdate(mutatorFn, successToastMsg = '') {
 }
 
 // ============================================================================
-// 3. UTILITIES & DATE ENGINE
+// 3. UTILITIES & MALDIVES WORKING-DAY ENGINE
 // ============================================================================
 function pad2(n) { return String(n).padStart(2, '0'); }
 function esc(str) {
@@ -344,7 +463,8 @@ function normalizeEmail(email) {
   return clean;
 }
 function isManager(email) {
-  return normalizeEmail(email) === normalizeEmail(MANAGER_EMAIL);
+  const norm = normalizeEmail(email);
+  return MANAGER_EMAILS.some(m => normalizeEmail(m) === norm);
 }
 function parseIsoUTC(iso) {
   const [y, m, d] = String(iso).split('-').map(Number);
@@ -361,13 +481,18 @@ function addDays(iso, delta) {
 function eachDateInRange(startIso, endIso, callback) {
   if (!startIso || !endIso || startIso > endIso) return;
   let cur = startIso;
-  while (cur <= endIso) {
+  let safety = 0;
+  while (cur <= endIso && safety < 400) {
     callback(cur);
     cur = addDays(cur, 1);
+    safety++;
   }
 }
 function calculateWorkingDays(startIso, endIso, holidaysList) {
   if (!startIso || !endIso || startIso > endIso) {
+    return { valid: false, calendarDays: 0, weekendDays: 0, weekdayHolidays: 0, workingDays: 0, dates: [] };
+  }
+  if (!startIso.startsWith('2027-') || !endIso.startsWith('2027-')) {
     return { valid: false, calendarDays: 0, weekendDays: 0, weekdayHolidays: 0, workingDays: 0, dates: [] };
   }
   const holSet = new Set((holidaysList || state.holidays).map(h => h.date));
@@ -376,13 +501,21 @@ function calculateWorkingDays(startIso, endIso, holidaysList) {
   eachDateInRange(startIso, endIso, d => {
     dates.push(d);
     calendarDays++;
-    const dow = parseIsoUTC(d).getUTCDay();
+    const dow = parseIsoUTC(d).getUTCDay(); // 5 = Friday, 6 = Saturday
     if (dow === 5 || dow === 6) weekendDays++;
     else if (holSet.has(d)) weekdayHolidays++;
   });
-  return { valid: true, calendarDays, weekendDays, weekdayHolidays, workingDays: calendarDays - weekendDays - weekdayHolidays, dates };
+  return {
+    valid: true,
+    calendarDays,
+    weekendDays,
+    weekdayHolidays,
+    workingDays: calendarDays - weekendDays - weekdayHolidays,
+    dates
+  };
 }
 function findEndDateForWorkingDays(startIso, targetWorkingDays) {
+  if (!startIso || !startIso.startsWith('2027-')) return null;
   let cur = startIso;
   while (cur <= '2027-12-31') {
     const res = calculateWorkingDays(startIso, cur, state.holidays);
@@ -391,14 +524,20 @@ function findEndDateForWorkingDays(startIso, targetWorkingDays) {
   }
   return null;
 }
-function getDailyLimit(iso) {
-  if (state.dateLimits && state.dateLimits[iso] !== undefined) return Number(state.dateLimits[iso]);
+function getDailyLimitForState(st, iso) {
+  if (st.dateLimits && st.dateLimits[iso] !== undefined) {
+    return Number(st.dateLimits[iso]);
+  }
   const month = Number(iso.slice(5, 7));
-  return Number(state.monthLimits[month] || 2);
+  return Number((st.monthLimits && st.monthLimits[month]) || 2);
 }
-function getStaffOnLeaveOnDate(iso, excludeStaffId = null) {
+function getDailyLimit(iso) {
+  return getDailyLimitForState(state, iso);
+}
+function getStaffOnLeaveOnDate(iso, excludeStaffId = null, customState = null) {
+  const st = customState || state;
   const names = [];
-  state.staff.forEach(s => {
+  st.staff.forEach(s => {
     if (!s.confirmedAt || s.id === excludeStaffId) return;
     const inP1 = s.period1 && iso >= s.period1.start && iso <= s.period1.end;
     const inP2 = s.period2 && iso >= s.period2.start && iso <= s.period2.end;
@@ -406,9 +545,13 @@ function getStaffOnLeaveOnDate(iso, excludeStaffId = null) {
   });
   return names;
 }
-function getActiveParticipants() { return state.staff.filter(s => s.canSpin !== false); }
-function getCurrentTurnMember() {
-  const active = getActiveParticipants();
+function getActiveParticipants(customState = null) {
+  const st = customState || state;
+  return st.staff.filter(s => s.canSpin !== false);
+}
+function getCurrentTurnMember(customState = null) {
+  const st = customState || state;
+  const active = getActiveParticipants(st);
   if (active.length === 0 || !active.every(s => s.luckyNumber !== null)) return null;
   const sorted = active.slice().sort((a, b) => a.luckyNumber - b.luckyNumber);
   return sorted.find(s => !s.confirmedAt) || null;
@@ -420,21 +563,28 @@ function ordinal(n) {
 function showToast(msg, type = 'info') {
   const box = document.getElementById('toastBox');
   if (!box) return;
-  box.className = 'toast-msg ' + (type === 'err' ? 'bg-red-700 text-white' : type === 'warn' ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-[#094228] text-white');
+  box.className = 'toast-msg ' + (
+    type === 'err' ? 'bg-rose-600 text-white' :
+    type === 'warn' ? 'bg-amber-100 text-amber-900 border border-amber-300' :
+    'bg-indigo-950 text-white border border-indigo-700'
+  );
   box.textContent = msg;
   box.classList.remove('hidden');
   clearTimeout(window._toastTimer);
-  window._toastTimer = setTimeout(() => box.classList.add('hidden'), 3400);
+  window._toastTimer = setTimeout(() => box.classList.add('hidden'), 3500);
 }
-
 function getCurrentUserRecord() {
   if (!currentUser || !currentUser.email) return null;
   const norm = normalizeEmail(currentUser.email);
-  return state.staff.find(s => normalizeEmail(s.email) === norm) || null;
+  let found = state.staff.find(s => normalizeEmail(s.email) === norm);
+  if (!found && isManager(currentUser.email)) {
+    found = state.staff.find(s => s.id === 21);
+  }
+  return found || null;
 }
 
 // ============================================================================
-// 4. ACTIONS & MANAGER CONTROLS
+// 4. STAFF & MANAGER ACTIONS
 // ============================================================================
 function handleGoogleSignIn() {
   const provider = new firebase.auth.GoogleAuthProvider();
@@ -453,7 +603,10 @@ function handleSpinClick() {
   if (isSpinning) return;
   const me = getCurrentUserRecord();
   if (!me) return showToast('Staff profile not found for this email.', 'err');
-  if (me.luckyNumber !== null) return showToast(`You already have number #${pad2(me.luckyNumber)}.`, 'warn');
+  if (state.finalized) return showToast('Calendar is finalised and locked.', 'err');
+  if (!state.drawOpen) return showToast('The lucky draw is not open yet.', 'warn');
+  if (me.canSpin === false) return showToast('Your account is excluded from the spin.', 'err');
+  if (me.luckyNumber !== null) return showToast(`You already spun #${pad2(me.luckyNumber)}.`, 'warn');
 
   const active = getActiveParticipants();
   const used = new Set(active.map(s => s.luckyNumber).filter(n => n !== null));
@@ -461,7 +614,7 @@ function handleSpinClick() {
   for (let i = 1; i <= active.length; i++) {
     if (!used.has(i)) pool.push(i);
   }
-  if (pool.length === 0) return showToast('All numbers assigned.', 'err');
+  if (pool.length === 0) return showToast('All lucky numbers have been assigned.', 'err');
 
   isSpinning = true;
   wheelAngle += 1080 + Math.floor(Math.random() * 360);
@@ -479,16 +632,22 @@ function handleSpinClick() {
       clearInterval(rollInterval);
       runAtomicPlannerUpdate((draft) => {
         const target = draft.staff.find(s => s.id === me.id);
+        if (!target || target.luckyNumber !== null) return;
         const activeList = draft.staff.filter(s => s.canSpin !== false);
         const taken = new Set(activeList.map(s => s.luckyNumber).filter(n => n !== null));
         const avail = [];
         for (let i = 1; i <= activeList.length; i++) {
           if (!taken.has(i)) avail.push(i);
         }
+        if (avail.length === 0) throw new Error('All numbers assigned.');
         const chosen = avail[Math.floor(Math.random() * avail.length)];
         target.luckyNumber = chosen;
         target.spunAt = new Date().toISOString();
-        draft.activity.unshift({ at: new Date().toISOString(), actor: currentUser.email, text: `${target.name} spun #${pad2(chosen)}` });
+        draft.activity.unshift({
+          at: new Date().toISOString(),
+          actor: currentUser.email,
+          text: `${target.name} spun lucky number #${pad2(chosen)}`
+        });
       }, 'Lucky number assigned!');
       isSpinning = false;
     }
@@ -497,20 +656,26 @@ function handleSpinClick() {
 
 function ensureLeaveFormInitialized(staffId) {
   if (leaveForm.forStaffId === staffId) return;
+  const p1s = '2027-04-04';
+  const p1e = findEndDateForWorkingDays(p1s, 15) || '2027-04-22';
+  const p2s = '2027-09-05';
+  const p2e = findEndDateForWorkingDays(p2s, 15) || '2027-09-23';
   leaveForm = {
     forStaffId: staffId,
-    p1Start: '2027-04-04',
-    p1End: findEndDateForWorkingDays('2027-04-04', 15) || '2027-04-22',
+    p1Start: p1s,
+    p1End: p1e,
     p2Enabled: true,
-    p2Start: '2027-09-05',
-    p2End: findEndDateForWorkingDays('2027-09-05', 15) || '2027-09-23'
+    p2Start: p2s,
+    p2End: p2e
   };
 }
 
 function applyPeriodShortcut(periodNum, targetWorkingDays) {
   if (periodNum === 1) {
     if (!leaveForm.p1Start) leaveForm.p1Start = '2027-04-04';
-    leaveForm.p1End = findEndDateForWorkingDays(leaveForm.p1Start, targetWorkingDays);
+    const endIso = findEndDateForWorkingDays(leaveForm.p1Start, targetWorkingDays);
+    if (!endIso) return showToast(`Could not fit ${targetWorkingDays} working days before 31 Dec 2027.`, 'warn');
+    leaveForm.p1End = endIso;
     if (targetWorkingDays === 30) {
       leaveForm.p2Enabled = false;
       leaveForm.p2Start = '';
@@ -518,86 +683,169 @@ function applyPeriodShortcut(periodNum, targetWorkingDays) {
     }
   } else {
     leaveForm.p2Enabled = true;
-    if (!leaveForm.p2Start) leaveForm.p2Start = leaveForm.p1End ? addDays(leaveForm.p1End, 14) : '2027-09-05';
-    leaveForm.p2End = findEndDateForWorkingDays(leaveForm.p2Start, targetWorkingDays);
+    if (!leaveForm.p2Start) {
+      leaveForm.p2Start = leaveForm.p1End ? addDays(leaveForm.p1End, 14) : '2027-09-05';
+    }
+    const endIso = findEndDateForWorkingDays(leaveForm.p2Start, targetWorkingDays);
+    if (!endIso) return showToast(`Could not fit ${targetWorkingDays} working days before 31 Dec 2027.`, 'warn');
+    leaveForm.p2End = endIso;
   }
   renderApp();
 }
 
 function validateCurrentLeaveForm(staffId) {
   const c1 = calculateWorkingDays(leaveForm.p1Start, leaveForm.p1End, state.holidays);
-  let c2 = { valid: true, workingDays: 0, dates: [] };
-  if (leaveForm.p2Enabled && leaveForm.p2Start && leaveForm.p2End) {
+  let c2 = { valid: true, calendarDays: 0, weekendDays: 0, weekdayHolidays: 0, workingDays: 0, dates: [] };
+  if (leaveForm.p2Enabled && (leaveForm.p2Start || leaveForm.p2End)) {
     c2 = calculateWorkingDays(leaveForm.p2Start, leaveForm.p2End, state.holidays);
   }
-  const totalWorking = c1.workingDays + c2.workingDays;
+  const totalWorking = (c1.valid ? c1.workingDays : 0) + (c2.valid ? c2.workingDays : 0);
+
   let errorMsg = '';
   if (!leaveForm.p1Start || !leaveForm.p1End) {
-    errorMsg = 'Select First leave period dates.';
+    errorMsg = 'Select First day and Last day for your First leave period.';
+  } else if (leaveForm.p1Start > leaveForm.p1End) {
+    errorMsg = 'First period start date cannot be after end date.';
   } else if (c1.workingDays <= 0) {
-    errorMsg = 'First period must have working days.';
-  } else if (leaveForm.p2Enabled && leaveForm.p2Start && leaveForm.p2End) {
+    errorMsg = 'First period must include at least 1 working day.';
+  } else if (leaveForm.p2Enabled && (leaveForm.p2Start || leaveForm.p2End)) {
     if (!leaveForm.p2Start || !leaveForm.p2End) {
-      errorMsg = 'Select Second leave period dates.';
+      errorMsg = 'Select both First day and Last day for your Second leave period.';
+    } else if (leaveForm.p2Start > leaveForm.p2End) {
+      errorMsg = 'Second period start date cannot be after end date.';
     } else if (c2.workingDays <= 0) {
-      errorMsg = 'Second period must have working days.';
+      errorMsg = 'Second period must include at least 1 working day.';
     } else {
-      // Fixed chronological overlap validation check
-      const p1Start = leaveForm.p1Start;
-      const p1End = leaveForm.p1End;
-      const p2Start = leaveForm.p2Start;
-      const p2End = leaveForm.p2End;
-      const overlap = !(p1End < p2Start || p2End < p1Start);
-      if (overlap) {
-        errorMsg = 'Periods cannot overlap.';
+      const noOverlap = (leaveForm.p1End < leaveForm.p2Start) || (leaveForm.p2End < leaveForm.p1Start);
+      if (!noOverlap) {
+        errorMsg = 'First and second leave periods cannot overlap.';
       }
     }
   }
+
   if (!errorMsg && totalWorking !== ENTITLEMENT_DAYS) {
-    errorMsg = `Total working days must equal 30 (currently ${totalWorking}).`;
+    errorMsg = `Total working days must equal exactly 30 (currently ${totalWorking}).`;
   }
-  return { c1, c2, totalWorking, errorMsg, canConfirm: !errorMsg && totalWorking === ENTITLEMENT_DAYS };
+
+  if (!errorMsg) {
+    const allDates = [...c1.dates, ...c2.dates];
+    for (const d of allDates) {
+      const booked = getStaffOnLeaveOnDate(d, staffId);
+      const lim = getDailyLimit(d);
+      if (booked.length >= lim) {
+        errorMsg = `Daily slot limit (${lim} staff) is full on ${d} (${booked.join(', ')}).`;
+        break;
+      }
+    }
+  }
+
+  return {
+    c1,
+    c2,
+    totalWorking,
+    errorMsg,
+    canConfirm: !errorMsg && totalWorking === ENTITLEMENT_DAYS
+  };
 }
 
 async function confirmLeaveSelection() {
   const me = getCurrentUserRecord();
+  if (!me) return;
   const check = validateCurrentLeaveForm(me.id);
-  if (!check.canConfirm) return showToast(check.errorMsg, 'err');
+  if (!check.canConfirm) return showToast(check.errorMsg || 'Please select 30 working days.', 'err');
+
+  const p1Payload = { start: leaveForm.p1Start, end: leaveForm.p1End };
+  const p2Payload = (leaveForm.p2Enabled && leaveForm.p2Start && leaveForm.p2End)
+    ? { start: leaveForm.p2Start, end: leaveForm.p2End }
+    : null;
 
   await runAtomicPlannerUpdate((draft) => {
+    if (draft.finalized) throw new Error('Calendar is finalised and locked.');
     const target = draft.staff.find(s => s.id === me.id);
-    target.period1 = { start: leaveForm.p1Start, end: leaveForm.p1End };
-    target.period2 = leaveForm.p2Enabled && leaveForm.p2Start && leaveForm.p2End ? { start: leaveForm.p2Start, end: leaveForm.p2End } : null;
+    if (!target) throw new Error('Staff profile not found.');
+
+    const calc1 = calculateWorkingDays(p1Payload.start, p1Payload.end, draft.holidays);
+    const calc2 = p2Payload
+      ? calculateWorkingDays(p2Payload.start, p2Payload.end, draft.holidays)
+      : { valid: true, workingDays: 0, dates: [] };
+
+    const allDates = [...calc1.dates, ...calc2.dates];
+    for (const d of allDates) {
+      const booked = getStaffOnLeaveOnDate(d, target.id, draft);
+      const lim = getDailyLimitForState(draft, d);
+      if (booked.length >= lim) {
+        throw new Error(`Date ${d} reached its slot limit (${lim} staff).`);
+      }
+    }
+
+    target.period1 = p1Payload;
+    target.period2 = p2Payload;
     target.confirmedAt = new Date().toISOString();
-    draft.activity.unshift({ at: new Date().toISOString(), actor: currentUser.email, text: `${target.name} confirmed 30 working days` });
-  }, 'Leave dates confirmed successfully!');
+    target.needsHolidayReview = false;
+    draft.activity.unshift({
+      at: new Date().toISOString(),
+      actor: currentUser.email,
+      text: `${target.name} (#${pad2(target.luckyNumber)}) confirmed 30 working days`
+    });
+  }, `Confirmed 30 working days for ${me.name}!`);
 }
 
-// Manager Action Handlers
+// ============================================================================
+// 5. MANAGER SLOT, HOLIDAY & STAFF CONTROL HANDLERS
+// ============================================================================
 async function toggleStaffSpinPermission(staffId) {
   await runAtomicPlannerUpdate((draft) => {
     const s = draft.staff.find(x => x.id === Number(staffId));
-    if (!s) return;
+    if (!s) throw new Error('Staff not found.');
+    if (s.confirmedAt) {
+      throw new Error(`Reopen ${s.name}'s confirmed booking first before blocking.`);
+    }
     s.canSpin = !s.canSpin;
-    if (!s.canSpin) { s.luckyNumber = null; s.spunAt = null; }
-  }, 'Updated spin permission');
+    if (!s.canSpin) {
+      s.luckyNumber = null;
+      s.spunAt = null;
+    }
+    const activeSpun = draft.staff
+      .filter(x => x.canSpin !== false && x.luckyNumber !== null)
+      .sort((a, b) => a.luckyNumber - b.luckyNumber);
+    activeSpun.forEach((member, idx) => {
+      member.luckyNumber = idx + 1;
+    });
+    draft.activity.unshift({
+      at: new Date().toISOString(),
+      actor: currentUser.email,
+      text: `Manager set ${s.name} spin participation to ${s.canSpin ? 'Allowed' : 'Blocked'}`
+    });
+  }, 'Updated spin participation!');
 }
 
 async function reopenStaffSelection(staffId) {
   await runAtomicPlannerUpdate((draft) => {
+    if (draft.finalized) throw new Error('Reopen the finalised calendar first.');
     const s = draft.staff.find(x => x.id === Number(staffId));
-    if (!s) return;
-    s.period1 = null; s.period2 = null; s.confirmedAt = null;
-  }, 'Reopened staff selection');
+    if (!s) throw new Error('Staff not found.');
+    s.period1 = null;
+    s.period2 = null;
+    s.confirmedAt = null;
+    s.needsHolidayReview = false;
+    draft.activity.unshift({
+      at: new Date().toISOString(),
+      actor: currentUser.email,
+      text: `Manager reopened date selection for ${s.name}`
+    });
+  }, 'Reopened staff leave selection!');
 }
 
 async function updateStaffEmail(staffId, newEmail) {
   const clean = String(newEmail || '').trim().toLowerCase();
-  if (!clean) return;
+  if (!clean || !clean.includes('@')) return showToast('Enter a valid Gmail address.', 'err');
+  const norm = normalizeEmail(clean);
   await runAtomicPlannerUpdate((draft) => {
+    const dup = draft.staff.find(x => x.id !== Number(staffId) && normalizeEmail(x.email) === norm);
+    if (dup) throw new Error(`Duplicate Gmail already used by ${dup.name}.`);
     const s = draft.staff.find(x => x.id === Number(staffId));
     if (s) s.email = clean;
-  }, 'Updated staff email');
+  }, 'Saved registered Gmail address!');
 }
 
 async function autoSpinRemainingStaff() {
@@ -618,34 +866,174 @@ async function autoSpinRemainingStaff() {
         s.spunAt = new Date().toISOString();
       }
     });
-  }, 'Auto-assigned remaining spins!');
+    draft.activity.unshift({
+      at: new Date().toISOString(),
+      actor: currentUser.email,
+      text: 'Manager auto-assigned remaining lucky numbers'
+    });
+  }, 'All active staff now have lucky numbers!');
+}
+
+async function saveMonthlyLimitsFromInputs() {
+  const inputs = document.querySelectorAll('.month-lim-input');
+  const nextLimits = { ...state.monthLimits };
+  inputs.forEach(inp => {
+    nextLimits[Number(inp.dataset.month)] = Number(inp.value);
+  });
+
+  await runAtomicPlannerUpdate((draft) => {
+    let conflict = null;
+    eachDateInRange('2027-01-01', '2027-12-31', d => {
+      if (conflict) return;
+      const eff = (draft.dateLimits && draft.dateLimits[d] !== undefined)
+        ? draft.dateLimits[d]
+        : nextLimits[Number(d.slice(5, 7))];
+      const booked = getStaffOnLeaveOnDate(d, null, draft).length;
+      if (eff < booked) conflict = { d, booked, eff };
+    });
+    if (conflict) {
+      throw new Error(`Cannot reduce limit on ${conflict.d} to ${conflict.eff} (${conflict.booked} already booked).`);
+    }
+    draft.monthLimits = nextLimits;
+    draft.activity.unshift({
+      at: new Date().toISOString(),
+      actor: currentUser.email,
+      text: 'Manager updated monthly slot limits'
+    });
+  }, 'Monthly slot limits saved!');
+  managerSub = 'MAIN';
+  renderApp();
+}
+
+async function saveQuickDateLimit() {
+  const startEl = document.getElementById('mgrLimStart');
+  const endEl = document.getElementById('mgrLimEnd');
+  const valEl = document.getElementById('mgrLimVal');
+  if (!startEl || !valEl) return;
+  const s = startEl.value;
+  const e = endEl && endEl.value ? endEl.value : s;
+  const lim = Number(valEl.value);
+  if (!s) return showToast('Please choose a date or start date.', 'warn');
+  if (s > e) return showToast('Start date cannot be after end date.', 'err');
+  if (isNaN(lim) || lim < 0) return showToast('Invalid slot limit.', 'err');
+
+  await runAtomicPlannerUpdate((draft) => {
+    let conflict = null;
+    eachDateInRange(s, e, d => {
+      const booked = getStaffOnLeaveOnDate(d, null, draft).length;
+      if (lim < booked && !conflict) conflict = { d, booked };
+    });
+    if (conflict) {
+      throw new Error(`Cannot set limit to ${lim} on ${conflict.d} (${conflict.booked} staff already booked).`);
+    }
+    draft.dateLimits = draft.dateLimits || {};
+    eachDateInRange(s, e, d => {
+      draft.dateLimits[d] = lim;
+    });
+    draft.activity.unshift({
+      at: new Date().toISOString(),
+      actor: currentUser.email,
+      text: `Manager set daily slot limit of ${lim} for ${s} to ${e}`
+    });
+  }, `Saved slot limit (${lim} staff) for ${s}${e !== s ? ' to ' + e : ''}`);
+}
+
+async function removeDateLimitOverride(iso) {
+  await runAtomicPlannerUpdate((draft) => {
+    const month = Number(iso.slice(5, 7));
+    const fallback = (draft.monthLimits && draft.monthLimits[month]) || 2;
+    const booked = getStaffOnLeaveOnDate(iso, null, draft).length;
+    if (fallback < booked) {
+      throw new Error(`Cannot remove override on ${iso}: ${booked} booked exceeds monthly limit ${fallback}.`);
+    }
+    if (draft.dateLimits) delete draft.dateLimits[iso];
+  }, 'Removed date slot override!');
+}
+
+async function addHolidayFromManager() {
+  const dt = document.getElementById('newHolDate')?.value;
+  const nm = document.getElementById('newHolName')?.value?.trim();
+  if (!dt || !nm) return showToast('Select holiday date and enter name.', 'warn');
+  await runAtomicPlannerUpdate((draft) => {
+    draft.holidays = draft.holidays || [];
+    draft.holidays.push({ date: dt, name: nm });
+    draft.holidays.sort((a, b) => a.date.localeCompare(b.date));
+    draft.staff.forEach(s => {
+      if (s.confirmedAt && s.period1) {
+        const d1 = calculateWorkingDays(s.period1.start, s.period1.end, draft.holidays).workingDays;
+        const d2 = s.period2 ? calculateWorkingDays(s.period2.start, s.period2.end, draft.holidays).workingDays : 0;
+        s.needsHolidayReview = (d1 + d2 !== ENTITLEMENT_DAYS);
+      }
+    });
+    draft.activity.unshift({
+      at: new Date().toISOString(),
+      actor: currentUser.email,
+      text: `Manager added holiday ${dt} (${nm})`
+    });
+  }, `Added holiday: ${nm}`);
+}
+
+async function removeHolidayAtIndex(idx) {
+  await runAtomicPlannerUpdate((draft) => {
+    const removed = draft.holidays.splice(idx, 1)[0];
+    draft.staff.forEach(s => {
+      if (s.confirmedAt && s.period1) {
+        const d1 = calculateWorkingDays(s.period1.start, s.period1.end, draft.holidays).workingDays;
+        const d2 = s.period2 ? calculateWorkingDays(s.period2.start, s.period2.end, draft.holidays).workingDays : 0;
+        s.needsHolidayReview = (d1 + d2 !== ENTITLEMENT_DAYS);
+      }
+    });
+    if (removed) {
+      draft.activity.unshift({
+        at: new Date().toISOString(),
+        actor: currentUser.email,
+        text: `Manager removed holiday ${removed.date} (${removed.name})`
+      });
+    }
+  }, 'Removed holiday date!');
+}
+
+async function toggleHolidaysReviewed(checkedVal) {
+  await runAtomicPlannerUpdate((draft) => {
+    draft.holidaysReviewed = Boolean(checkedVal);
+  });
 }
 
 async function toggleFinaliseCalendar() {
   await runAtomicPlannerUpdate((draft) => {
     draft.finalized = !draft.finalized;
-  }, state.finalized ? 'Calendar reopened' : 'Calendar finalised!');
+  }, state.finalized ? 'Calendar reopened for edits.' : 'FOMU 2027 Annual Leave calendar is now FINALISED!');
 }
 
 async function archiveAndRestartDraw() {
-  if (!window.confirm("Are you sure you want to archive current results and restart the draw?")) return;
+  if (!window.confirm("Archive current results and restart a fresh draw for all staff?")) return;
   await runAtomicPlannerUpdate((draft) => {
-    draft.archives.unshift({ archivedAt: new Date().toISOString(), staff: draft.staff });
+    draft.archives = draft.archives || [];
+    draft.archives.unshift({ archivedAt: new Date().toISOString(), staff: JSON.parse(JSON.stringify(draft.staff)) });
     draft.finalized = false;
-    draft.staff.forEach(s => { s.luckyNumber = null; s.period1 = null; s.period2 = null; s.confirmedAt = null; });
-  }, 'Draw reset and archived!');
+    draft.staff.forEach(s => {
+      s.luckyNumber = null;
+      s.spunAt = null;
+      s.period1 = null;
+      s.period2 = null;
+      s.confirmedAt = null;
+      s.needsHolidayReview = false;
+    });
+  }, 'Previous draw archived. Fresh draw started!');
+  leaveForm.forStaffId = null;
 }
 
 async function resetEntireCloudState() {
-  if (!window.confirm("WARNING: This will completely wipe all data and reset the entire planner to factory default. Proceed?")) return;
+  if (!window.confirm("WARNING: This will wipe all spins, bookings, and custom limits back to factory defaults. Continue?")) return;
   await runAtomicPlannerUpdate((draft) => {
     const fresh = createFreshState();
     Object.keys(fresh).forEach(k => draft[k] = fresh[k]);
   }, 'Reset entire planner to factory state!');
+  leaveForm.forStaffId = null;
 }
 
 // ============================================================================
-// 5. EXPORTS (PDF & EXCEL)
+// 6. CUTE GANTT CHART & FULL PDF / EXCEL / JSON EXPORTS
 // ============================================================================
 function dateToYearFraction(iso) {
   const dt = parseIsoUTC(iso);
@@ -665,10 +1053,10 @@ function formatGanttPillLabel(startIso, endIso) {
 function getGanttPeriodsForStaff(s) {
   const periods = [];
   if (s.confirmedAt && s.period1) {
-    periods.push({ start: s.period1.start, end: s.period1.end, color: 'green' });
+    periods.push({ start: s.period1.start, end: s.period1.end, color: 'p1' });
   }
   if (s.confirmedAt && s.period2) {
-    periods.push({ start: s.period2.start, end: s.period2.end, color: 'gold' });
+    periods.push({ start: s.period2.start, end: s.period2.end, color: 'p2' });
   }
   return periods;
 }
@@ -689,24 +1077,32 @@ function closeFullScreenGanttModal() {
   modal.classList.remove('flex');
 }
 
+function refreshOpenGanttModal() {
+  const modal = document.getElementById('ganttFullModal');
+  const body = document.getElementById('ganttFullModalContent');
+  if (modal && body && !modal.classList.contains('hidden')) {
+    body.innerHTML = renderReferenceGanttTable(true);
+  }
+}
+
 function downloadPdfExport() {
-  if (!window.jspdf) return showToast('PDF library loading...', 'warn');
+  if (!window.jspdf) return showToast('PDF library still loading, try again in a moment.', 'warn');
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const statusTag = state.finalized ? 'FINAL' : 'DRAFT';
 
-  // PAGE 1: GANTT CHART
-  doc.setFillColor(18, 53, 91);
-  doc.rect(10, 10, 277, 8, 'F');
+  // PAGE 1: GANTT CHART OVERVIEW
+  doc.setFillColor(79, 70, 229);
+  doc.roundedRect(10, 10, 277, 9, 2, 2, 'F');
   doc.setFontSize(12);
   doc.setTextColor(255, 255, 255);
-  doc.text(`${EXPORT_TITLE} — 2027 Annual Leave Gantt (${statusTag})`, 14, 15.3);
+  doc.text(`${EXPORT_TITLE} — 2027 Annual Leave Gantt Chart (${statusTag})`, 14, 16);
 
   const monthsShort = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const monthDays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-  const tableX = 10, noColW = 10, nameColW = 38, chartX = tableX + noColW + nameColW, chartW = 229, headerY = 20, headerH = 7, rowH = 8.1;
+  const tableX = 10, noColW = 10, nameColW = 38, chartX = tableX + noColW + nameColW, chartW = 229, headerY = 21, headerH = 7, rowH = 8.0;
 
-  doc.setFillColor(22, 61, 102);
+  doc.setFillColor(67, 56, 202);
   doc.rect(tableX, headerY, noColW, headerH, 'FD');
   doc.rect(tableX + noColW, headerY, nameColW, headerH, 'FD');
   doc.setFontSize(8);
@@ -718,8 +1114,8 @@ function downloadPdfExport() {
   monthsShort.forEach((mLabel, mIdx) => {
     const mx = chartX + (dayCursor / 365) * chartW;
     const mw = (monthDays[mIdx] / 365) * chartW;
-    doc.setFillColor(22, 61, 102);
-    doc.setDrawColor(60, 105, 150);
+    doc.setFillColor(67, 56, 202);
+    doc.setDrawColor(129, 140, 248);
     doc.rect(mx, headerY, mw, headerH, 'FD');
     doc.text(mLabel, mx + mw / 2, headerY + 4.8, { align: 'center' });
     dayCursor += monthDays[mIdx];
@@ -728,15 +1124,24 @@ function downloadPdfExport() {
   state.staff.forEach((s, idx) => {
     const ry = headerY + headerH + idx * rowH;
     const isEven = idx % 2 === 0;
-    doc.setDrawColor(198, 214, 230);
-    doc.setFillColor(isEven ? 243 : 255, isEven ? 248 : 255, isEven ? 253 : 255);
+    doc.setDrawColor(224, 231, 255);
+    doc.setFillColor(isEven ? 245 : 255, isEven ? 243 : 255, isEven ? 255 : 255);
     doc.rect(tableX, ry, noColW, rowH, 'FD');
     doc.rect(tableX + noColW, ry, nameColW, rowH, 'FD');
 
+    let dc = 0;
+    monthsShort.forEach((_, mIdx) => {
+      const mx = chartX + (dc / 365) * chartW;
+      const mw = (monthDays[mIdx] / 365) * chartW;
+      doc.setFillColor(isEven ? 245 : 255, isEven ? 243 : 255, isEven ? 255 : 255);
+      doc.rect(mx, ry, mw, rowH, 'FD');
+      dc += monthDays[mIdx];
+    });
+
     doc.setFontSize(7.8);
-    doc.setTextColor(15, 35, 60);
-    doc.text(String(s.id), tableX + noColW / 2, ry + 5.3, { align: 'center' });
-    doc.text(s.name, tableX + noColW + 2.5, ry + 5.3);
+    doc.setTextColor(30, 27, 75);
+    doc.text(String(s.id), tableX + noColW / 2, ry + 5.2, { align: 'center' });
+    doc.text(s.name, tableX + noColW + 2.5, ry + 5.2);
 
     const periods = getGanttPeriodsForStaff(s);
     periods.forEach(p => {
@@ -744,64 +1149,112 @@ function downloadPdfExport() {
       const fEnd = dateToYearFraction(p.end) + (1 / 365);
       const bx = chartX + fStart * chartW;
       const bw = Math.max(18, (fEnd - fStart) * chartW);
-      if (p.color === 'gold') {
-        doc.setFillColor(244, 185, 42);
-        doc.roundedRect(bx, ry + 1.3, bw, rowH - 2.6, 1.8, 1.8, 'F');
-        doc.setTextColor(25, 30, 35);
+      if (p.color === 'p2') {
+        doc.setFillColor(245, 158, 11);
       } else {
-        doc.setFillColor(22, 138, 80);
-        doc.roundedRect(bx, ry + 1.3, bw, rowH - 2.6, 1.8, 1.8, 'F');
-        doc.setTextColor(255, 255, 255);
+        doc.setFillColor(16, 185, 129);
       }
+      doc.roundedRect(bx, ry + 1.2, bw, rowH - 2.4, 2.2, 2.2, 'F');
+      doc.setTextColor(255, 255, 255);
       doc.setFontSize(6.2);
-      doc.text(formatGanttPillLabel(p.start, p.end), bx + bw / 2, ry + 5.1, { align: 'center' });
+      doc.text(formatGanttPillLabel(p.start, p.end), bx + bw / 2, ry + 5.0, { align: 'center' });
     });
   });
 
-  // PAGE 2: SUMMARY TABLE
+  // PAGE 2: STAFF SUMMARY TABLE
   doc.addPage();
-  doc.setTextColor(14, 46, 32);
-  doc.setFontSize(15);
+  doc.setTextColor(30, 27, 75);
+  doc.setFontSize(14);
   doc.text(`${EXPORT_TITLE} — Staff Summary (${statusTag})`, 14, 14);
   doc.setFontSize(8.5);
   let y = 22;
+  doc.text('ID | Staff Name | Lucky # | First Period | Second Period | Working Days | Status', 14, y);
+  y += 6;
   state.staff.forEach(s => {
     const d1 = s.period1 ? calculateWorkingDays(s.period1.start, s.period1.end, state.holidays).workingDays : 0;
     const d2 = s.period2 ? calculateWorkingDays(s.period2.start, s.period2.end, state.holidays).workingDays : 0;
     const p1 = s.period1 ? `${s.period1.start} to ${s.period1.end} (${d1}d)` : '—';
     const p2 = s.period2 ? `${s.period2.start} to ${s.period2.end} (${d2}d)` : '—';
     const stText = s.canSpin === false ? 'Excluded' : (s.confirmedAt ? 'Confirmed' : 'Pending');
-    doc.text(`${s.id}. ${s.name} | #${pad2(s.luckyNumber || 0)} | P1: ${p1} | P2: ${p2} | Total: ${d1+d2}d | ${stText}`, 14, y);
+    doc.text(`${s.id}. ${s.name} | ${s.luckyNumber ? '#' + pad2(s.luckyNumber) : '—'} | ${p1} | ${p2} | ${d1 + d2}/30 | ${stText}`, 14, y);
     y += 6.2;
   });
 
+  // PAGES 3–14: 12 MONTHLY CALENDAR GRIDS
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const holMap = {};
+  state.holidays.forEach(h => { holMap[h.date] = h.name; });
+
+  for (let m = 1; m <= 12; m++) {
+    doc.addPage();
+    doc.setFontSize(13);
+    doc.setTextColor(30, 27, 75);
+    doc.text(`${EXPORT_TITLE} — ${months[m - 1]} 2027 (${statusTag})`, 14, 13);
+    const daysInMonth = new Date(Date.UTC(2027, m, 0)).getUTCDate();
+    const firstDow = new Date(Date.UTC(2027, m - 1, 1)).getUTCDay();
+    const cellW = 38, cellH = 28, startX = 14, startY = 21;
+    ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach((dn, idx) => {
+      doc.setFontSize(8);
+      doc.text(dn, startX + idx * cellW + 2, startY - 2);
+    });
+    for (let d = 1; d <= daysInMonth; d++) {
+      const slot = firstDow + d - 1;
+      const col = slot % 7, row = Math.floor(slot / 7);
+      const x = startX + col * cellW, cy = startY + row * cellH;
+      const iso = `2027-${pad2(m)}-${pad2(d)}`;
+      const dow = new Date(Date.UTC(2027, m - 1, d)).getUTCDay();
+      if (dow === 5 || dow === 6) {
+        doc.setFillColor(241, 245, 249);
+        doc.rect(x, cy, cellW, cellH, 'F');
+      } else if (holMap[iso]) {
+        doc.setFillColor(254, 243, 199);
+        doc.rect(x, cy, cellW, cellH, 'F');
+      }
+      doc.setDrawColor(203, 213, 225);
+      doc.rect(x, cy, cellW, cellH);
+      const onLeave = getStaffOnLeaveOnDate(iso);
+      doc.setFontSize(7.5);
+      doc.text(`${d} (${onLeave.length}/${getDailyLimit(iso)})`, x + 1.5, cy + 4);
+      if (holMap[iso]) {
+        doc.setFontSize(6);
+        doc.text(doc.splitTextToSize(holMap[iso], cellW - 3).slice(0, 1), x + 1.5, cy + 8);
+      }
+      if (onLeave.length) {
+        doc.setFontSize(6.5);
+        doc.text(doc.splitTextToSize(onLeave.join(', '), cellW - 3).slice(0, 3), x + 1.5, cy + 12);
+      }
+    }
+  }
+
   doc.save(`${EXPORT_TITLE} (${statusTag}).pdf`);
-  showToast('Downloaded PDF report!');
+  showToast('Downloaded full 14-page PDF calendar!');
 }
 
 function downloadExcelExport() {
-  if (!window.XLSX) return showToast('Excel library loading...', 'warn');
+  if (!window.XLSX) return showToast('Excel library still loading, try again in a moment.', 'warn');
   const wb = XLSX.utils.book_new();
   const statusTag = state.finalized ? 'FINAL' : 'DRAFT';
   const summaryRows = [
     [`${EXPORT_TITLE} (${statusTag})`],
-    ['ID', 'Staff Name', 'Lucky #', 'Period 1 Start', 'Period 1 End', 'Period 2 Start', 'Period 2 End', 'Total Days', 'Status']
+    ['ID', 'Staff Name', 'Participates', 'Lucky #', 'Period 1 Start', 'Period 1 End', 'Period 1 Working Days', 'Period 2 Start', 'Period 2 End', 'Period 2 Working Days', 'Total Working Days', 'Unallocated Days', 'Status']
   ];
   state.staff.forEach(s => {
     const d1 = s.period1 ? calculateWorkingDays(s.period1.start, s.period1.end, state.holidays).workingDays : 0;
     const d2 = s.period2 ? calculateWorkingDays(s.period2.start, s.period2.end, state.holidays).workingDays : 0;
     summaryRows.push([
-      s.id, s.name, s.luckyNumber ? pad2(s.luckyNumber) : '',
-      s.period1?.start || '', s.period1?.end || '',
-      s.period2?.start || '', s.period2?.end || '',
-      d1 + d2, s.confirmedAt ? 'Confirmed' : 'Pending'
+      s.id, s.name, s.canSpin !== false ? 'Yes' : 'No',
+      s.luckyNumber ? pad2(s.luckyNumber) : '',
+      s.period1 ? s.period1.start : '', s.period1 ? s.period1.end : '', d1,
+      s.period2 ? s.period2.start : '', s.period2 ? s.period2.end : '', d2,
+      d1 + d2, ENTITLEMENT_DAYS - (d1 + d2),
+      s.canSpin === false ? 'Excluded' : (s.confirmedAt ? 'Confirmed' : 'Pending')
     ]);
   });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryRows), 'Staff Summary');
 
   const holMap = {};
   state.holidays.forEach(h => { holMap[h.date] = h.name; });
-  const dailyRows = [['Date', 'Day', 'Holiday Name', 'Booked Count', 'Daily Limit', 'Staff on Leave']];
+  const dailyRows = [['Date', 'Day', 'Holiday Name', 'Booked Count', 'Daily Slot Limit', 'Staff on Leave']];
   const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   eachDateInRange('2027-01-01', '2027-12-31', d => {
     const dow = dayNames[parseIsoUTC(d).getUTCDay()];
@@ -811,18 +1264,29 @@ function downloadExcelExport() {
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dailyRows), '365 Day Calendar');
 
   XLSX.writeFile(wb, `${EXPORT_TITLE} (${statusTag}).xlsx`);
-  showToast('Downloaded Excel workbook!');
+  showToast('Downloaded Excel (.xlsx) workbook!');
+}
+
+function downloadJsonBackup() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'FOMU-2027-Annual-Leave-Backup.json';
+  a.click();
+  showToast('Downloaded JSON backup!');
 }
 
 // ============================================================================
-// 6. RENDER SYSTEM
+// 7. MODERN RENDER ENGINE
 // ============================================================================
 function renderApp() {
   const frame = document.getElementById('appFrame');
   if (!frame) return;
 
+  const activeId = document.activeElement ? document.activeElement.id : null;
+
   if (!authInitialized) {
-    frame.innerHTML = `<div class="flex-1 flex items-center justify-center text-sm text-[#4b6e5e]">Loading authentication...</div>`;
+    frame.innerHTML = `<div class="flex-1 flex items-center justify-center text-sm font-bold text-indigo-600">Loading FOMU Portal…</div>`;
     return;
   }
 
@@ -837,95 +1301,145 @@ function renderApp() {
   if (!me && !userIsMgr) {
     frame.innerHTML = `
       <div class="signin-bg flex-1 flex flex-col justify-between p-6">
-        <div class="font-black text-xl text-[#0e2e20]">FOMU</div>
-        <div class="bg-white rounded-3xl p-6 text-center border border-[#bce8d2]">
-          <h2 class="text-lg font-bold text-red-700 mb-2">Unauthorized Account</h2>
-          <p class="text-xs text-[#4b6e5e] mb-4">${esc(currentUser.email)} is not registered on the staff list.</p>
-          <button onclick="handleSignOut()" class="w-full bg-[#0d5c38] text-white py-2.5 rounded-xl font-bold text-xs">Sign Out</button>
+        <div class="font-extrabold text-xl bg-gradient-to-r from-indigo-600 to-pink-600 bg-clip-text text-transparent">FOMU</div>
+        <div class="glass-card p-6 text-center">
+          <h2 class="text-lg font-extrabold text-rose-600 mb-2">Email Not Registered</h2>
+          <p class="text-xs text-slate-600 mb-5"><strong>${esc(currentUser.email)}</strong> is not on the FOMU 2027 staff list.</p>
+          <button onclick="handleSignOut()" class="w-full btn-liquid-primary py-3 font-bold text-xs">Switch Gmail Account</button>
         </div>
-        <div></div>
+        <div class="text-center text-xs text-slate-400">Department staff access only</div>
       </div>`;
     return;
   }
 
   const topBar = `
-    <div class="px-4 py-3 bg-white border-b border-[#d1e8dc] flex items-center justify-between sticky top-0 z-20">
-      <div class="font-black text-base text-[#094228]">FOMU <span class="text-xs font-normal text-[#4b6e5e]">| Leave 2027</span></div>
+    <div class="px-4 py-3.5 bg-white/85 backdrop-blur-md border-b border-indigo-100 flex items-center justify-between sticky top-0 z-20">
+      <div class="flex items-center gap-1.5">
+        <span class="font-extrabold text-base bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">FOMU</span>
+        <span class="text-slate-300">|</span>
+        <span class="font-bold text-xs text-slate-700">Leave 2027</span>
+      </div>
       <div class="flex items-center gap-2">
-        ${userIsMgr ? `<button onclick="roleView=(roleView==='MANAGER'?'STAFF':'MANAGER');renderApp()" class="px-2.5 py-1 rounded-full text-xs font-bold bg-[#dff5e9] text-[#094228]">${roleView==='MANAGER'?'Staff View':'Manager'}</button>` : ''}
-        <button onclick="handleSignOut()" class="px-2.5 py-1 rounded-full text-xs font-semibold bg-[#f2fbf6] text-[#4b6e5e]">Sign Out</button>
+        ${userIsMgr ? `
+          <button onclick="roleView=(roleView==='MANAGER'?'STAFF':'MANAGER');managerSub='MAIN';renderApp()"
+            class="px-3 py-1.5 text-xs font-extrabold ${roleView === 'MANAGER' ? 'btn-liquid-primary' : 'btn-liquid-soft'}">
+            ${roleView === 'MANAGER' ? 'My Leave View' : 'Manager'}
+          </button>
+        ` : ''}
+        <button onclick="handleSignOut()" class="px-3 py-1.5 btn-liquid-soft text-xs font-bold">
+          Sign Out
+        </button>
       </div>
     </div>`;
 
-  let body = (roleView === 'MANAGER' && userIsMgr) ? renderManagerDashboard() : renderStaffExperience(me || { name: 'Admin', luckyNumber: null, confirmedAt: null });
+  const body = (roleView === 'MANAGER' && userIsMgr)
+    ? renderManagerDashboard()
+    : renderStaffExperience(me || { id: 21, name: 'Admin', luckyNumber: null, confirmedAt: null });
+
   frame.innerHTML = topBar + body;
+
+  if (activeId) {
+    const el = document.getElementById(activeId);
+    if (el && el.tagName === 'INPUT' && el.type !== 'date') el.focus();
+  }
 }
 
 function renderSignInScreen() {
   return `
     <div class="signin-bg flex-1 flex flex-col justify-between px-6 py-10 text-center">
       <div>
-        <div class="font-black text-2xl text-[#0e2e20]">FOMU</div>
-        <h1 class="text-3xl font-extrabold text-[#0e2e20] mt-12">2027 Annual Leave</h1>
+        <div class="flex items-center justify-between">
+          <span class="font-extrabold text-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">FOMU</span>
+          <span class="text-[11px] font-bold px-3 py-1 rounded-full bg-indigo-100 text-indigo-700">2027 Planner</span>
+        </div>
+        <h1 class="text-4xl font-extrabold text-slate-900 mt-12 leading-tight">2027<br><span class="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 bg-clip-text text-transparent">Annual Leave</span></h1>
       </div>
-      <div class="bg-white/90 border border-[#bce8d2] rounded-3xl p-6 shadow-sm">
-        <p class="text-sm text-[#4b6e5e] mb-5">Sign in securely using your registered Google account</p>
-        <button onclick="handleGoogleSignIn()" class="w-full bg-[#0d5c38] hover:bg-[#094228] text-white rounded-2xl py-3.5 font-bold text-sm shadow transition flex items-center justify-center gap-2">
-          Sign in with Google
+
+      <div class="glass-card p-6 text-center">
+        <div class="text-xl font-extrabold text-slate-800 mb-1">Your leave. Your turn.</div>
+        <p class="text-xs text-slate-500 mb-6">Sign in securely with your registered Gmail account</p>
+        <button onclick="handleGoogleSignIn()" class="w-full btn-liquid-primary py-3.5 px-4 font-bold text-sm flex items-center justify-center gap-3">
+          <svg class="w-5 h-5 bg-white rounded-full p-0.5" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.14C3.26 21.3 7.31 24 12 24z"/>
+            <path fill="#FBBC05" d="M5.28 14.24c-.24-.72-.38-1.49-.38-2.24s.14-1.52.38-2.24V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.99-3.14z"/>
+            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96z"/>
+          </svg>
+          <span>Continue with Google</span>
         </button>
       </div>
-      <div class="text-xs text-[#4b6e5e]">Noonu Atoll Hospital Department Portal</div>
+
+      <div class="text-xs font-semibold text-slate-400">Staff access only</div>
     </div>`;
 }
 
 function renderStaffExperience(me) {
   const tabs = `
-    <div class="px-4 pt-3 bg-white border-b border-[#d1e8dc]">
-      <div class="flex items-center gap-2.5 mb-2.5">
-        <div class="w-9 h-9 rounded-full bg-[#bce8d2] text-[#094228] font-bold flex items-center justify-center">${esc(me.name.charAt(0))}</div>
+    <div class="px-4 pt-3.5 bg-white/70 border-b border-indigo-100">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white font-extrabold flex items-center justify-center shadow-md">
+          ${esc(me.name.charAt(0).toUpperCase())}
+        </div>
         <div>
-          <div class="font-extrabold text-base text-[#0e2e20]">Hello, ${esc(me.name)}</div>
-          <div class="text-xs text-[#4b6e5e]">${me.luckyNumber ? `Lucky Number #${pad2(me.luckyNumber)}` : 'Step 1 · Spin your number'}</div>
+          <div class="font-extrabold text-base text-slate-900">Hello, ${esc(me.name)}</div>
+          <div class="text-xs font-semibold text-indigo-600">${me.luckyNumber ? `Lucky Number #${pad2(me.luckyNumber)}` : 'Step 1 · Spin your number'}</div>
         </div>
       </div>
-      <div class="grid grid-cols-2 gap-2 pb-2">
-        <button onclick="staffTab='MY_LEAVE';renderApp()" class="py-2 rounded-xl font-bold text-xs ${staffTab==='MY_LEAVE'?'bg-[#0d5c38] text-white':'bg-[#f2fbf6] text-[#0e2e20] border'}">My leave</button>
-        <button onclick="staffTab='TEAM_CAL';renderApp()" class="py-2 rounded-xl font-bold text-xs ${staffTab==='TEAM_CAL'?'bg-[#0d5c38] text-white':'bg-[#f2fbf6] text-[#0e2e20] border'}">Team calendar</button>
+      <div class="grid grid-cols-2 gap-2.5 pb-3">
+        <button onclick="staffTab='MY_LEAVE';renderApp()" class="py-2.5 font-extrabold text-xs ${staffTab === 'MY_LEAVE' ? 'btn-liquid-primary' : 'btn-liquid-soft'}">My leave</button>
+        <button onclick="staffTab='TEAM_CAL';renderApp()" class="py-2.5 font-extrabold text-xs ${staffTab === 'TEAM_CAL' ? 'btn-liquid-primary' : 'btn-liquid-soft'}">Team calendar</button>
       </div>
     </div>`;
 
-  if (staffTab === 'TEAM_CAL') return tabs + `<div class="p-4 flex-1">${renderTeamCalendarTab()}</div>`;
+  if (staffTab === 'TEAM_CAL') return tabs + `<div class="p-4 flex-1">${renderTeamCalendarTab(me)}</div>`;
   return tabs + `<div class="p-4 flex-1">${renderMyLeaveTab(me)}</div>`;
 }
 
 function renderMyLeaveTab(me) {
+  if (me.canSpin === false) {
+    return `
+      <div class="glass-card p-5 text-center border-rose-200 bg-rose-50/70">
+        <div class="text-base font-extrabold text-rose-800 mb-1">Participation Disabled</div>
+        <p class="text-xs text-rose-600">The manager has excluded your account from participating in the spin.</p>
+      </div>`;
+  }
+
   const activeStaff = getActiveParticipants();
   const totalActive = activeStaff.length;
-  const spunStaff = activeStaff.filter(s => s.luckyNumber !== null).sort((a,b)=>a.luckyNumber-b.luckyNumber);
+  const spunStaff = activeStaff.filter(s => s.luckyNumber !== null).sort((a, b) => a.luckyNumber - b.luckyNumber);
   const spunCount = spunStaff.length;
+  const allSpun = spunCount === totalActive && totalActive > 0;
+  const currentTurn = getCurrentTurnMember();
 
   if (me.luckyNumber === null) {
     return `
-      <div class="bg-[#f2fbf6] border border-[#bce8d2] rounded-2xl p-5 text-center mb-3">
-        <h2 class="text-xl font-extrabold text-[#0e2e20] mb-2">Your turn to spin</h2>
-        <div class="my-4 flex justify-center">
+      <div class="glass-Tint p-5 text-center mb-3.5">
+        <span class="inline-block bg-white/80 text-indigo-700 text-[11px] font-extrabold px-3 py-1 rounded-full mb-1 shadow-xs">
+          Step 1 &middot; Lucky Draw
+        </span>
+        <h2 class="text-xl font-extrabold text-slate-900 mb-1">Your turn to spin</h2>
+        <div class="my-5 flex justify-center">
           <div class="wheel-ring" id="spinWheelRing" style="transform: rotate(${wheelAngle}deg);">
             <div class="wheel-hub" id="spinWheelHub">${rollingDisplay}</div>
           </div>
         </div>
-        <button onclick="handleSpinClick()" ${isSpinning?'disabled':''} class="w-full bg-[#0d5c38] text-white font-bold py-3 rounded-xl text-sm">Spin once</button>
-        <div class="mt-3 bg-[#dff5e9] text-[#094228] font-bold text-xs py-2 px-3 rounded-xl">
+        <button onclick="handleSpinClick()" ${isSpinning || !state.drawOpen ? 'disabled' : ''} class="w-full btn-liquid-primary font-extrabold py-3.5 text-sm">
+          ${isSpinning ? 'Spinning Wheel…' : 'Spin for My Lucky Number'}
+        </button>
+        <div class="mt-3 bg-white/75 text-indigo-800 font-bold text-xs py-2 px-3 rounded-xl">
           ${spunCount} of ${totalActive} staff have spun
         </div>
       </div>
-      
-      <div class="bg-white border rounded-2xl overflow-hidden mt-3">
-        <div class="bg-[#dff5e9] px-4 py-2 font-bold text-xs text-[#094228]">Draw Results (${spunCount})</div>
-        <div class="divide-y divide-[#d1e8dc]">
-          ${spunStaff.length === 0 ? '<div class="p-3 text-xs text-gray-500">No one has spun yet.</div>' : spunStaff.map(s => `
-            <div class="px-4 py-2 flex justify-between text-xs font-semibold">
-              <span>${esc(s.name)}</span>
-              <span class="bg-[#f2fbf6] px-2 py-0.5 rounded font-bold text-[#094228]">#${pad2(s.luckyNumber)}</span>
+
+      <div class="glass-card overflow-hidden">
+        <div class="bg-indigo-50/80 px-4 py-2.5 font-extrabold text-xs text-indigo-900 border-b border-indigo-100">
+          Live Draw Results (${spunCount})
+        </div>
+        <div class="divide-y divide-slate-100">
+          ${spunStaff.length === 0 ? '<div class="p-4 text-xs text-slate-400 text-center">No one has spun yet. Be the first!</div>' : spunStaff.map(s => `
+            <div class="px-4 py-2.5 flex justify-between items-center text-xs font-bold">
+              <span class="text-slate-800">${esc(s.name)}</span>
+              <span class="bg-indigo-100 text-indigo-800 px-2.5 py-0.5 rounded-full font-extrabold">#${pad2(s.luckyNumber)}</span>
             </div>
           `).join('')}
         </div>
@@ -936,31 +1450,63 @@ function renderMyLeaveTab(me) {
     const d1 = calculateWorkingDays(me.period1.start, me.period1.end, state.holidays).workingDays;
     const d2 = me.period2 ? calculateWorkingDays(me.period2.start, me.period2.end, state.holidays).workingDays : 0;
     return `
-      <div class="bg-[#0d5c38] text-white rounded-2xl p-4 text-center mb-3">
-        <h2 class="font-extrabold text-base">Leave Confirmed ✓</h2>
-        <p class="text-xs mt-1">Period 1: ${me.period1.start} to ${me.period1.end} (${d1} days)</p>
-        ${me.period2 ? `<p class="text-xs">Period 2: ${me.period2.start} to ${me.period2.end} (${d2} days)</p>` : ''}
-        <p class="text-xs font-bold mt-2">Total: ${d1 + d2} working days</p>
-      </div>`;
+      <div class="btn-liquid-teal p-4 mb-3.5 flex items-center justify-between">
+        <span class="font-extrabold text-sm">${esc(me.name)} &middot; Lucky #${pad2(me.luckyNumber)}</span>
+        <span class="bg-white/25 px-2.5 py-0.5 rounded-full text-xs font-bold">Confirmed &#10003;</span>
+      </div>
+
+      ${me.needsHolidayReview ? `
+        <div class="bg-amber-100 border border-amber-300 text-amber-900 rounded-2xl p-3 text-xs font-bold mb-3">
+          Notice: The 2027 holiday list was updated, changing your working-day total (${d1 + d2} days). Ask the manager to reopen your dates if needed.
+        </div>
+      ` : ''}
+
+      <div class="glass-card p-4 mb-3.5">
+        <h3 class="font-extrabold text-sm text-slate-900 mb-2">My Confirmed 2027 Leave</h3>
+        <div class="py-2 border-b border-slate-100 flex justify-between text-xs">
+          <span class="text-slate-600">First period (${me.period1.start} to ${me.period1.end})</span>
+          <strong class="text-emerald-700">${d1} working days</strong>
+        </div>
+        ${me.period2 ? `
+          <div class="py-2 border-b border-slate-100 flex justify-between text-xs">
+            <span class="text-slate-600">Second period (${me.period2.start} to ${me.period2.end})</span>
+            <strong class="text-amber-600">${d2} working days</strong>
+          </div>
+        ` : ''}
+        <div class="mt-3 bg-indigo-50 text-indigo-900 font-extrabold text-xs py-2.5 px-3 rounded-xl text-center">
+          Total &middot; ${d1 + d2} / 30 working days
+        </div>
+      </div>
+
+      <button onclick="staffTab='TEAM_CAL';renderApp()" class="w-full btn-liquid-soft py-3 font-extrabold text-xs">
+        View Team Calendar &amp; Cute Gantt
+      </button>`;
   }
 
-  const currentTurn = getCurrentTurnMember();
-  const isMyTurn = currentTurn && currentTurn.id === me.id;
+  const isMyTurn = allSpun && currentTurn && currentTurn.id === me.id;
 
   if (!isMyTurn) {
     return `
-      <div class="bg-white border rounded-2xl p-4 text-center mb-3">
-        <div class="text-4xl font-black text-[#094228] mb-1">#${pad2(me.luckyNumber)}</div>
-        <p class="text-xs text-[#4b6e5e]">Waiting for your turn. Currently, <strong>${currentTurn ? esc(currentTurn.name) : 'someone'}</strong> is choosing their dates.</p>
+      <div class="glass-Tint p-5 text-center mb-3.5">
+        <div class="text-xs font-bold text-indigo-700">Your Lucky Number</div>
+        <div class="text-5xl font-black bg-gradient-to-r from-indigo-600 to-pink-600 bg-clip-text text-transparent my-1.5">#${pad2(me.luckyNumber)}</div>
+        <p class="text-xs font-semibold text-slate-600">
+          ${!allSpun
+            ? `Waiting for ${totalActive - spunCount} remaining staff to spin before date selection opens.`
+            : `Currently, <strong>${currentTurn ? esc(currentTurn.name) + ' (#' + pad2(currentTurn.luckyNumber) + ')' : 'another colleague'}</strong> is selecting their dates.`}
+        </p>
       </div>
-      <div class="bg-white border rounded-2xl overflow-hidden">
-        <div class="bg-[#dff5e9] px-4 py-2 font-bold text-xs text-[#094228]">Turn Order</div>
-        <div class="divide-y divide-[#d1e8dc]">
+
+      <div class="glass-card overflow-hidden">
+        <div class="bg-indigo-50/80 px-4 py-2.5 font-extrabold text-xs text-indigo-900 border-b border-indigo-100">
+          Department Turn Order (${spunCount}/${totalActive} spun)
+        </div>
+        <div class="divide-y divide-slate-100">
           ${spunStaff.map(s => `
-            <div class="px-4 py-2 flex justify-between text-xs font-semibold">
-              <span>${esc(s.name)} (#${pad2(s.luckyNumber)})</span>
-              <span class="${s.confirmedAt ? 'text-emerald-700' : (currentTurn?.id === s.id ? 'text-amber-700 font-bold' : 'text-gray-500')}">
-                ${s.confirmedAt ? 'Booked ✓' : (currentTurn?.id === s.id ? 'Choosing now' : 'Waiting')}
+            <div class="px-4 py-2.5 flex justify-between items-center text-xs font-bold ${s.id === me.id ? 'bg-indigo-50/70' : ''}">
+              <span>#${pad2(s.luckyNumber)} &middot; ${esc(s.name)} ${s.id === me.id ? '(You)' : ''}</span>
+              <span class="${s.confirmedAt ? 'text-emerald-600' : (currentTurn?.id === s.id ? 'text-amber-600' : 'text-slate-400')}">
+                ${s.confirmedAt ? 'Booked &#10003;' : (currentTurn?.id === s.id ? 'Choosing now' : 'Waiting')}
               </span>
             </div>
           `).join('')}
@@ -972,97 +1518,250 @@ function renderMyLeaveTab(me) {
   const check = validateCurrentLeaveForm(me.id);
   const c1 = check.c1;
   const c2 = check.c2;
+  const remainingAfterP1 = Math.max(0, ENTITLEMENT_DAYS - (c1.valid ? c1.workingDays : 0));
 
   return `
-    <div class="bg-[#0d5c38] text-white rounded-xl p-3 mb-3 text-xs font-bold">It's your turn to pick your 30 working days!</div>
-    
-    <div class="bg-white border rounded-2xl p-4 mb-3">
-      <h3 class="font-bold text-sm mb-2">First leave period (${c1.workingDays} working days)</h3>
-      <div class="grid grid-cols-2 gap-2 mb-2">
-        <input type="date" value="${leaveForm.p1Start}" oninput="leaveForm.p1Start=this.value;renderApp()" />
-        <input type="date" value="${leaveForm.p1End}" oninput="leaveForm.p1End=this.value;renderApp()" />
-      </div>
-      <button onclick="applyPeriodShortcut(1, 15)" class="text-xs text-[#0d5c38] font-bold underline">Auto-fill 15 days</button>
+    <div class="btn-liquid-primary p-3.5 mb-3.5 flex items-center justify-between">
+      <span class="font-extrabold text-xs">${esc(me.name)} &middot; #${pad2(me.luckyNumber)} &middot; Your Turn!</span>
+      <span class="bg-white/20 px-2.5 py-0.5 rounded-full text-[11px] font-bold">30 Working Days</span>
     </div>
 
-    <div class="bg-white border rounded-2xl p-4 mb-3">
-      <h3 class="font-bold text-sm mb-2">Second leave period (${leaveForm.p2Enabled ? c2.workingDays : 0} working days)</h3>
-      ${!leaveForm.p2Enabled ? `
-        <button onclick="leaveForm.p2Enabled=true;renderApp()" class="w-full py-2 border border-[#0d5c38] text-[#0d5c38] rounded-xl text-xs font-bold">+ Add second leave period</button>
-      ` : `
-        <div class="grid grid-cols-2 gap-2 mb-2">
-          <input type="date" value="${leaveForm.p2Start}" oninput="leaveForm.p2Start=this.value;renderApp()" />
-          <input type="date" value="${leaveForm.p2End}" oninput="leaveForm.p2End=this.value;renderApp()" />
+    <!-- FIRST PERIOD -->
+    <div class="glass-card p-4 mb-3">
+      <div class="flex items-center justify-between mb-2">
+        <span class="font-extrabold text-xs text-slate-800">First Leave Period</span>
+        <span class="bg-emerald-100 text-emerald-800 font-extrabold text-[11px] px-2.5 py-0.5 rounded-full">${c1.valid ? c1.workingDays : 0} working days</span>
+      </div>
+      <div class="grid grid-cols-2 gap-2 mb-2.5">
+        <div>
+          <label class="text-[10px] font-bold text-slate-500 block mb-1">First day</label>
+          <input type="date" min="2027-01-01" max="2027-12-31" value="${leaveForm.p1Start}"
+            oninput="leaveForm.p1Start=this.value;if(!leaveForm.p1End||leaveForm.p1End<this.value)leaveForm.p1End=this.value;renderApp()" />
         </div>
-        <div class="flex gap-2">
-          <button onclick="applyPeriodShortcut(2, 15)" class="text-xs text-[#0d5c38] font-bold underline">Auto-fill 15 days</button>
-          <button onclick="leaveForm.p2Enabled=false;renderApp()" class="text-xs text-red-700 font-bold ml-auto">Remove Period 2</button>
+        <div>
+          <label class="text-[10px] font-bold text-slate-500 block mb-1">Last day</label>
+          <input type="date" min="2027-01-01" max="2027-12-31" value="${leaveForm.p1End}"
+            oninput="leaveForm.p1End=this.value;renderApp()" />
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-1.5">
+        <button type="button" onclick="applyPeriodShortcut(1, 15)" class="px-2.5 py-1.5 btn-liquid-soft text-[11px] font-bold">+ Auto-fill 15 days</button>
+        <button type="button" onclick="applyPeriodShortcut(1, 30)" class="px-2.5 py-1.5 btn-liquid-soft text-[11px] font-bold">+ Auto-fill all 30 days</button>
+      </div>
+    </div>
+
+    <!-- SECOND PERIOD -->
+    <div class="glass-card p-4 mb-3">
+      <div class="flex items-center justify-between mb-2">
+        <span class="font-extrabold text-xs text-slate-800">Second Leave Period</span>
+        <span class="bg-amber-100 text-amber-800 font-extrabold text-[11px] px-2.5 py-0.5 rounded-full">${leaveForm.p2Enabled && c2.valid ? c2.workingDays : 0} working days</span>
+      </div>
+      ${!leaveForm.p2Enabled ? `
+        <button type="button" onclick="leaveForm.p2Enabled=true;renderApp()" class="w-full py-2.5 btn-liquid-soft font-extrabold text-xs">+ Add Second Leave Period</button>
+      ` : `
+        <div class="grid grid-cols-2 gap-2 mb-2.5">
+          <div>
+            <label class="text-[10px] font-bold text-slate-500 block mb-1">First day</label>
+            <input type="date" min="2027-01-01" max="2027-12-31" value="${leaveForm.p2Start}"
+              oninput="leaveForm.p2Start=this.value;if(!leaveForm.p2End||leaveForm.p2End<this.value)leaveForm.p2End=this.value;renderApp()" />
+          </div>
+          <div>
+            <label class="text-[10px] font-bold text-slate-500 block mb-1">Last day</label>
+            <input type="date" min="2027-01-01" max="2027-12-31" value="${leaveForm.p2End}"
+              oninput="leaveForm.p2End=this.value;renderApp()" />
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-1.5 items-center">
+          <button type="button" onclick="applyPeriodShortcut(2, 15)" class="px-2.5 py-1.5 btn-liquid-soft text-[11px] font-bold">+ Auto-fill 15 days</button>
+          ${remainingAfterP1 > 0 && remainingAfterP1 !== 15 ? `
+            <button type="button" onclick="applyPeriodShortcut(2, ${remainingAfterP1})" class="px-2.5 py-1.5 btn-liquid-soft text-[11px] font-bold">+ Auto-fill ${remainingAfterP1} days</button>
+          ` : ''}
+          <button type="button" onclick="leaveForm.p2Enabled=false;leaveForm.p2Start='';leaveForm.p2End='';renderApp()" class="text-[11px] font-bold text-rose-600 ml-auto px-2 py-1">Remove</button>
         </div>
       `}
     </div>
 
-    <div class="rounded-xl p-3 text-center font-bold text-xs mb-3 ${check.canConfirm?'bg-[#dff5e9] text-[#094228]':'bg-amber-100 text-amber-900'}">
-      ${check.totalWorking} / 30 working days selected
+    <div class="rounded-2xl p-3 text-center font-extrabold text-xs mb-2.5 ${check.canConfirm ? 'bg-emerald-100 text-emerald-900 border border-emerald-300' : 'bg-amber-100 text-amber-900 border border-amber-300'}">
+      ${check.canConfirm ? '&#10003; ' : ''}${check.totalWorking} / 30 working days selected
     </div>
-    ${check.errorMsg ? `<div class="text-xs text-red-700 bg-red-50 p-2 rounded mb-3">${esc(check.errorMsg)}</div>` : ''}
-    <button onclick="confirmLeaveSelection()" ${!check.canConfirm?'disabled':''} class="w-full bg-[#0d5c38] disabled:opacity-40 text-white font-bold py-3 rounded-xl text-sm">Confirm Leave Dates</button>`;
+
+    ${check.errorMsg ? `<div class="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-2xl p-3 mb-3">${esc(check.errorMsg)}</div>` : ''}
+
+    <button type="button" onclick="confirmLeaveSelection()" ${!check.canConfirm ? 'disabled' : ''} class="w-full btn-liquid-primary font-extrabold py-3.5 text-sm">
+      Confirm My 30-Day Leave
+    </button>`;
 }
 
+// ============================================================================
+// 8. TEAM CALENDAR TAB (WEEK VIEW, MONTH VIEW & CUTE GANTT)
+// ============================================================================
 function renderTeamCalendarTab() {
-  return `
-    <div class="space-y-3">
-      <div class="bg-white border rounded-2xl p-4 text-center">
-        <h3 class="font-bold text-sm mb-2">Team Calendar &amp; Exports</h3>
-        <p class="text-xs text-[#4b6e5e] mb-3">View approved leaves or export official reports.</p>
-        <div class="flex gap-2">
-          <button onclick="downloadPdfExport()" class="flex-1 bg-[#0d5c38] text-white py-2.5 rounded-xl text-xs font-bold">Export PDF</button>
-          <button onclick="downloadExcelExport()" class="flex-1 bg-[#0d5c38] text-white py-2.5 rounded-xl text-xs font-bold">Export Excel</button>
-        </div>
+  const holMap = {};
+  state.holidays.forEach(h => { holMap[h.date] = h.name; });
+
+  const selDt = parseIsoUTC(selectedCalDate);
+  const mNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const selBooked = getStaffOnLeaveOnDate(selectedCalDate);
+  const selLimit = getDailyLimit(selectedCalDate);
+  const selHol = holMap[selectedCalDate] || '';
+
+  const modeButtons = `
+    <div class="flex items-center justify-between gap-2 mb-3">
+      <h2 class="text-base font-extrabold text-slate-900">Team Leave Schedule</h2>
+      <div class="flex gap-1.5">
+        <button onclick="calViewMode='WEEK';renderApp()" class="px-2.5 py-1.5 text-[11px] font-extrabold ${calViewMode === 'WEEK' ? 'btn-liquid-primary' : 'btn-liquid-soft'}">Week</button>
+        <button onclick="calViewMode='MONTH';renderApp()" class="px-2.5 py-1.5 text-[11px] font-extrabold ${calViewMode === 'MONTH' ? 'btn-liquid-primary' : 'btn-liquid-soft'}">Month</button>
+        <button onclick="calViewMode='GANTT';renderApp()" class="px-2.5 py-1.5 text-[11px] font-extrabold ${calViewMode === 'GANTT' ? 'btn-liquid-primary' : 'btn-liquid-soft'}">Gantt</button>
       </div>
-      ${renderReferenceGanttTable(false)}
+    </div>`;
+
+  if (calViewMode === 'GANTT') {
+    return modeButtons + renderReferenceGanttTable(false);
+  }
+
+  let calGridHtml = '';
+  if (calViewMode === 'WEEK') {
+    const weekStartIso = addDays(selectedCalDate, -selDt.getUTCDay());
+    const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekStartIso, i));
+    const dStart = parseIsoUTC(weekDates[0]);
+    const dEnd = parseIsoUTC(weekDates[6]);
+    const weekLabel = `${dStart.getUTCDate()} ${mNames[dStart.getUTCMonth()].slice(0, 3)} – ${dEnd.getUTCDate()} ${mNames[dEnd.getUTCMonth()].slice(0, 3)} 2027`;
+
+    calGridHtml = `
+      <div class="flex items-center justify-between gap-2 mb-2.5">
+        <button onclick="selectedCalDate=addDays(selectedCalDate,-7);renderApp()" class="px-3 py-1.5 btn-liquid-soft font-extrabold text-xs">&lt;</button>
+        <div class="flex-1 text-center bg-indigo-50 text-indigo-900 font-extrabold text-xs py-2 rounded-xl">${weekLabel}</div>
+        <button onclick="selectedCalDate=addDays(selectedCalDate,7);renderApp()" class="px-3 py-1.5 btn-liquid-soft font-extrabold text-xs">&gt;</button>
+      </div>
+      <div class="grid grid-cols-7 border border-indigo-100 rounded-2xl overflow-hidden bg-white shadow-xs">
+        ${weekDates.map(iso => {
+          const dt = parseIsoUTC(iso);
+          const dow = dt.getUTCDay();
+          const isWknd = dow === 5 || dow === 6;
+          const isHol = Boolean(holMap[iso]);
+          const names = getStaffOnLeaveOnDate(iso);
+          const lim = getDailyLimit(iso);
+          return `
+            <div onclick="selectedCalDate='${iso}';renderApp()"
+              class="cal-tap min-h-[108px] p-1 border-r last:border-r-0 border-slate-100 flex flex-col items-center ${isWknd ? 'bg-slate-100/70' : (isHol ? 'bg-amber-50/80' : 'bg-white')} ${iso === selectedCalDate ? 'ring-2 ring-inset ring-indigo-500' : ''}">
+              <div class="text-[10px] font-extrabold text-slate-700">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dow]} ${dt.getUTCDate()}</div>
+              <div class="text-[9px] font-bold text-slate-400 mb-1">${names.length}/${lim}</div>
+              <div class="w-full flex flex-col gap-1">
+                ${names.map(n => `<div class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold text-[9px] px-1 py-0.5 rounded-md truncate text-center shadow-2xs">${esc(n)}</div>`).join('')}
+              </div>
+            </div>`;
+        }).join('')}
+      </div>`;
+  } else {
+    const curMonth = selDt.getUTCMonth() + 1;
+    const daysInMonth = new Date(Date.UTC(2027, curMonth, 0)).getUTCDate();
+    const firstDow = new Date(Date.UTC(2027, curMonth - 1, 1)).getUTCDay();
+    const prevMonth = curMonth === 1 ? 12 : curMonth - 1;
+    const nextMonth = curMonth === 12 ? 1 : curMonth + 1;
+
+    calGridHtml = `
+      <div class="flex items-center justify-between gap-2 mb-2.5">
+        <button onclick="selectedCalDate='2027-${pad2(prevMonth)}-01';renderApp()" class="px-3 py-1.5 btn-liquid-soft font-extrabold text-xs">&lt;</button>
+        <div class="flex-1 text-center bg-indigo-50 text-indigo-900 font-extrabold text-xs py-2 rounded-xl">${mNames[curMonth - 1]} 2027</div>
+        <button onclick="selectedCalDate='2027-${pad2(nextMonth)}-01';renderApp()" class="px-3 py-1.5 btn-liquid-soft font-extrabold text-xs">&gt;</button>
+      </div>
+      <div class="grid grid-cols-7 gap-1 text-center mb-1">
+        ${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => `<div class="text-[10px] font-extrabold text-slate-400">${d}</div>`).join('')}
+      </div>
+      <div class="grid grid-cols-7 gap-1">
+        ${Array(firstDow).fill('<div></div>').join('')}
+        ${Array.from({ length: daysInMonth }, (_, idx) => {
+          const day = idx + 1;
+          const iso = `2027-${pad2(curMonth)}-${pad2(day)}`;
+          const dow = new Date(Date.UTC(2027, curMonth - 1, day)).getUTCDay();
+          const isWknd = dow === 5 || dow === 6;
+          const isHol = Boolean(holMap[iso]);
+          const names = getStaffOnLeaveOnDate(iso);
+          const lim = getDailyLimit(iso);
+          const isFull = names.length >= lim;
+          return `
+            <div onclick="selectedCalDate='${iso}';renderApp()"
+              class="cal-tap min-h-[46px] p-1 rounded-xl border text-center ${
+                isFull ? 'bg-rose-100 border-rose-300 text-rose-900' :
+                isHol ? 'bg-amber-50 border-amber-300 text-amber-900' :
+                isWknd ? 'bg-slate-100 border-slate-200 text-slate-500' : 'bg-white border-slate-200'
+              } ${iso === selectedCalDate ? 'ring-2 ring-indigo-500' : ''}">
+              <div class="text-xs font-extrabold">${day}</div>
+              <div class="text-[10px] font-bold">${names.length}/${lim}</div>
+            </div>`;
+        }).join('')}
+      </div>`;
+  }
+
+  return `
+    ${modeButtons}
+    ${calGridHtml}
+    <div class="glass-Tint p-4 mt-3">
+      <div class="font-extrabold text-sm text-indigo-950">${selectedCalDate}</div>
+      ${selHol ? `<div class="text-xs font-extrabold text-amber-700 mt-0.5">Holiday: ${esc(selHol)}</div>` : ''}
+      <div class="text-xs text-slate-700 mt-1">Staff on leave: <strong>${selBooked.length ? esc(selBooked.join(', ')) : 'None'}</strong></div>
+      <div class="text-xs font-bold text-indigo-700 mt-0.5">Available slots: ${Math.max(0, selLimit - selBooked.length)} of ${selLimit}</div>
     </div>`;
 }
 
+// ============================================================================
+// 9. CUTE MODERN GANTT CHART COMPONENT
+// ============================================================================
 function renderReferenceGanttTable(isFullModal = false) {
   const mNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   return `
-    <div class="${isFullModal ? 'p-4 sm:p-5 bg-[#eef4f9]' : 'mb-3'}">
-      <div class="flex items-center justify-between gap-2 mb-3 bg-white border border-[#c5d6e8] rounded-xl p-2.5 shadow-xs">
-        <span class="font-extrabold text-xs text-[#12355b]">Gantt Chart Overview</span>
-        <div class="flex gap-1.5">
-          <button onclick="downloadPdfExport()" class="px-2.5 py-1 rounded-lg bg-[#168a50] text-white font-bold text-[11px]">Export PDF</button>
-          ${!isFullModal ? `<button onclick="openFullScreenGanttModal()" class="px-2.5 py-1 rounded-lg bg-[#12355b] text-white font-bold text-[11px]">Full View</button>` : `<button onclick="closeFullScreenGanttModal()" class="px-3 py-1 rounded-lg bg-red-700 text-white font-bold text-xs">Close</button>`}
+    <div class="${isFullModal ? 'p-4 sm:p-6 bg-gradient-to-br from-indigo-50/70 via-white to-pink-50/60' : 'mb-3'}">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-3 glass-card p-3">
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full bg-gradient-to-r from-indigo-500 to-pink-500"></span>
+          <span class="font-extrabold text-xs sm:text-sm text-slate-800">2027 Team Leave Gantt Timeline</span>
+        </div>
+        <div class="flex flex-wrap gap-1.5">
+          <button onclick="downloadPdfExport()" class="px-3 py-1.5 btn-liquid-teal font-extrabold text-[11px]">&darr; PDF</button>
+          <button onclick="downloadExcelExport()" class="px-3 py-1.5 btn-liquid-soft font-extrabold text-[11px]">&darr; Excel</button>
+          ${!isFullModal ? `
+            <button onclick="openFullScreenGanttModal()" class="px-3 py-1.5 btn-liquid-primary font-extrabold text-[11px]">&#x26F6; Full View</button>
+          ` : `
+            <button onclick="closeFullScreenGanttModal()" class="px-3.5 py-1.5 btn-liquid-danger font-extrabold text-xs">&times; Close</button>
+          `}
         </div>
       </div>
-      <div class="overflow-x-auto rounded-xl border-2 border-[#163d66] bg-white">
+
+      <div class="overflow-x-auto rounded-3xl border-2 border-indigo-100 shadow-lg bg-white">
         <div class="min-w-[920px]">
-          <div class="grid grid-cols-[44px_156px_1fr] bg-[#12355b] text-white font-extrabold text-xs">
-            <div class="py-2 px-1 text-center">No.</div>
-            <div class="py-2 px-3">Staff Name</div>
-            <div class="grid grid-cols-12 text-center">${mNames.map(m => `<div class="py-2">${m}</div>`).join('')}</div>
+          <!-- Cute Pastel Gradient Header -->
+          <div class="grid grid-cols-[44px_156px_1fr] bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 text-white font-extrabold text-xs">
+            <div class="py-3 px-1 text-center border-r border-white/20">No.</div>
+            <div class="py-3 px-3 text-left border-r border-white/20">Staff Member</div>
+            <div class="grid grid-cols-12 text-center">
+              ${mNames.map(m => `<div class="py-3 border-r last:border-r-0 border-white/20">${m}</div>`).join('')}
+            </div>
           </div>
-          <div class="divide-y divide-[#c8d8e8]">
+
+          <!-- 21 Staff Rows -->
+          <div class="divide-y divide-indigo-50">
             ${state.staff.map((s, idx) => {
               const periods = getGanttPeriodsForStaff(s);
               return `
-                <div class="grid grid-cols-[44px_156px_1fr] items-center text-xs ${idx % 2 === 0 ? 'bg-[#edf3f9]' : 'bg-white'}">
-                  <div class="py-2 text-center font-bold">${s.id}</div>
-                  <div class="py-2 px-3 font-bold truncate flex justify-between items-center">
-                    <span>${esc(s.name)}</span>
-                    ${s.luckyNumber ? `<span class="text-[10px] bg-[#12355b] text-white px-1 rounded">#${pad2(s.luckyNumber)}</span>` : ''}
+                <div class="grid grid-cols-[44px_156px_1fr] items-center text-xs ${idx % 2 === 0 ? 'bg-indigo-50/35' : 'bg-white'} hover:bg-pink-50/40 transition-colors">
+                  <div class="py-2.5 text-center font-extrabold text-indigo-400 border-r border-indigo-50">${s.id}</div>
+                  <div class="py-2.5 px-3 font-extrabold text-slate-800 border-r border-indigo-50 truncate flex items-center justify-between gap-1">
+                    <span class="truncate">${esc(s.name)}</span>
+                    ${s.luckyNumber ? `<span class="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-extrabold">#${pad2(s.luckyNumber)}</span>` : ''}
                   </div>
-                  <div class="relative h-7 grid grid-cols-12">
-                    ${Array.from({ length: 12 }, () => `<div class="border-r border-[#c8d8e8] h-full"></div>`).join('')}
+                  <div class="relative h-8 grid grid-cols-12">
+                    ${Array.from({ length: 12 }, () => `<div class="border-r last:border-r-0 border-indigo-50/80 h-full"></div>`).join('')}
                     ${periods.map(p => {
                       const startFrac = dateToYearFraction(p.start);
                       const endFrac = dateToYearFraction(p.end) + (1 / 365);
                       const leftPct = (startFrac * 100).toFixed(2);
                       const widthPct = Math.max(7.2, (endFrac - startFrac) * 100).toFixed(2);
                       const label = formatGanttPillLabel(p.start, p.end);
-                      const isGold = p.color === 'gold';
                       return `
-                        <div style="left:${leftPct}%;width:${widthPct}%;" class="absolute top-1 bottom-1 rounded px-1 flex items-center justify-center text-[9px] font-bold text-white shadow-sm ${isGold ? 'bg-[#f5b82e] text-gray-900' : 'bg-[#168a50]'}">
-                          ${label}
+                        <div title="${esc(s.name)}: ${label}"
+                          style="left:${leftPct}%;width:${widthPct}%;"
+                          class="absolute top-1 bottom-1 rounded-full px-2 flex items-center justify-center text-[9.5px] font-extrabold whitespace-nowrap overflow-hidden ${p.color === 'p2' ? 'gantt-pill-p2' : 'gantt-pill-p1'}">
+                          ${esc(label)}
                         </div>`;
                     }).join('')}
                   </div>
@@ -1071,59 +1770,227 @@ function renderReferenceGanttTable(isFullModal = false) {
           </div>
         </div>
       </div>
+
+      <div class="flex flex-wrap items-center justify-between gap-2 mt-2.5 text-[11px] text-slate-500 px-1 font-semibold">
+        <div class="flex items-center gap-3">
+          <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full gantt-pill-p1 inline-block"></span>First Leave Period</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full gantt-pill-p2 inline-block"></span>Second Leave Period</span>
+        </div>
+        <span>Swipe horizontally or tap <strong>Full View</strong></span>
+      </div>
     </div>`;
 }
 
+// ============================================================================
+// 10. MANAGER DASHBOARD (SLOTS, HOLIDAYS, STAFF & EXPORTS)
+// ============================================================================
 function renderManagerDashboard() {
   const activeStaff = getActiveParticipants();
   const spunCount = activeStaff.filter(s => s.luckyNumber !== null).length;
   const bookedCount = activeStaff.filter(s => s.confirmedAt).length;
+  const mNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-  if (managerSub === 'STAFF_CONTROL') {
+  if (managerSub === 'MONTH_LIMITS') {
     return `
       <div class="p-4 flex-1">
-        <button onclick="managerSub='MAIN';renderApp()" class="mb-3 px-3 py-1.5 rounded-xl border border-[#0d5c38] text-[#0d5c38] font-bold text-xs bg-white">&larr; Back</button>
-        <h1 class="text-xl font-extrabold mb-3">Staff &amp; Spin Control</h1>
-        <div class="space-y-2.5">
-          ${state.staff.map(s => `
-            <div class="bg-white border rounded-xl p-3 text-xs">
-              <div class="flex justify-between items-center mb-1 font-bold">
-                <span>${s.id}. ${esc(s.name)} ${s.luckyNumber ? '(#'+pad2(s.luckyNumber)+')' : ''}</span>
-                <button onclick="toggleStaffSpinPermission(${s.id})" class="px-2 py-0.5 rounded font-bold ${s.canSpin!==false?'bg-emerald-100 text-emerald-900':'bg-red-100 text-red-900'}">
-                  ${s.canSpin!==false?'Allowed':'Blocked'}
-                </button>
+        <button onclick="managerSub='MAIN';renderApp()" class="mb-3 px-3.5 py-2 btn-liquid-soft font-extrabold text-xs">&larr; Back to Manager Dashboard</button>
+        <h1 class="text-xl font-extrabold text-slate-900 mb-1">Monthly Leave Slot Limits</h1>
+        <p class="text-xs text-slate-500 mb-3.5">Set the maximum number of staff allowed on leave simultaneously for each month of 2027.</p>
+        <div class="grid grid-cols-3 gap-2.5 mb-4">
+          ${mNames.map((m, idx) => `
+            <div class="glass-card p-3">
+              <label class="text-xs font-extrabold text-indigo-900 block mb-1">${m} 2027</label>
+              <input type="number" min="1" max="21" class="month-lim-input" data-month="${idx + 1}" value="${state.monthLimits[idx + 1] ?? 2}" />
+            </div>
+          `).join('')}
+        </div>
+        <button onclick="saveMonthlyLimitsFromInputs()" class="w-full btn-liquid-primary font-extrabold py-3.5 text-sm">
+          Save Monthly Slot Limits
+        </button>
+      </div>`;
+  }
+
+  if (managerSub === 'HOLIDAYS') {
+    return `
+      <div class="p-4 flex-1">
+        <button onclick="managerSub='MAIN';renderApp()" class="mb-3 px-3.5 py-2 btn-liquid-soft font-extrabold text-xs">&larr; Back to Manager Dashboard</button>
+        <h1 class="text-xl font-extrabold text-slate-900 mb-1">2027 Public Holidays</h1>
+        <p class="text-xs text-slate-500 mb-3">Weekday public holidays are automatically excluded when counting a staff member's 30 working days.</p>
+
+        <div class="glass-Tint p-3.5 mb-3.5">
+          <div class="text-xs font-extrabold text-indigo-950 mb-2">Add New 2027 Holiday</div>
+          <div class="grid grid-cols-2 gap-2 mb-2.5">
+            <input type="date" id="newHolDate" min="2027-01-01" max="2027-12-31" />
+            <input type="text" id="newHolName" placeholder="Holiday title" />
+          </div>
+          <button onclick="addHolidayFromManager()" class="w-full py-2.5 btn-liquid-primary font-extrabold text-xs">
+            + Add Holiday to Calendar
+          </button>
+        </div>
+
+        <label class="flex items-center gap-2.5 text-xs font-bold mb-3 glass-card p-3">
+          <input type="checkbox" ${state.holidaysReviewed ? 'checked' : ''} onchange="toggleHolidaysReviewed(this.checked)" />
+          <span>I have reviewed and verified the 2027 holiday list</span>
+        </label>
+
+        <div class="glass-card divide-y divide-slate-100 overflow-hidden">
+          ${state.holidays.map((h, i) => `
+            <div class="px-3.5 py-2.5 flex items-center justify-between text-xs">
+              <div>
+                <strong class="text-indigo-700">${h.date}</strong> &middot; <span class="font-semibold text-slate-700">${esc(h.name)}</span>
               </div>
-              <div class="flex gap-1 mt-1">
-                <input type="email" id="mgrEmail_${s.id}" value="${esc(s.email)}" class="text-xs p-1" />
-                <button onclick="updateStaffEmail(${s.id}, document.getElementById('mgrEmail_${s.id}').value)" class="px-2 bg-[#0d5c38] text-white rounded font-bold">Save</button>
-              </div>
-              ${s.confirmedAt ? `<button onclick="reopenStaffSelection(${s.id})" class="mt-1 text-red-700 underline font-bold">Reopen dates</button>` : ''}
+              <button onclick="removeHolidayAtIndex(${i})" class="text-rose-600 font-extrabold px-2 py-0.5 rounded hover:bg-rose-50">Remove</button>
             </div>
           `).join('')}
         </div>
       </div>`;
   }
 
+  if (managerSub === 'STAFF_CONTROL') {
+    return `
+      <div class="p-4 flex-1">
+        <button onclick="managerSub='MAIN';renderApp()" class="mb-3 px-3.5 py-2 btn-liquid-soft font-extrabold text-xs">&larr; Back to Manager Dashboard</button>
+        <h1 class="text-xl font-extrabold text-slate-900 mb-1">Staff List &amp; Spin Control</h1>
+        <p class="text-xs text-slate-500 mb-3">Allow or block spin participation, update Gmail addresses, or reopen confirmed leave dates.</p>
+        <div class="space-y-2.5">
+          ${state.staff.map(s => {
+            const d1 = s.period1 ? calculateWorkingDays(s.period1.start, s.period1.end, state.holidays).workingDays : 0;
+            const d2 = s.period2 ? calculateWorkingDays(s.period2.start, s.period2.end, state.holidays).workingDays : 0;
+            return `
+              <div class="glass-card p-3.5 text-xs">
+                <div class="flex justify-between items-center mb-2">
+                  <span class="font-extrabold text-sm text-slate-900">${s.id}. ${esc(s.name)} ${s.luckyNumber ? `<span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full text-xs">#${pad2(s.luckyNumber)}</span>` : ''}</span>
+                  <button onclick="toggleStaffSpinPermission(${s.id})" class="px-2.5 py-1 rounded-full font-extrabold text-[11px] ${s.canSpin !== false ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+                    ${s.canSpin !== false ? 'Allowed to Spin' : 'Blocked'}
+                  </button>
+                </div>
+                <div class="flex gap-1.5 mb-2">
+                  <input type="email" id="mgrEmail_${s.id}" value="${esc(s.email)}" class="text-xs py-1.5" />
+                  <button onclick="updateStaffEmail(${s.id}, document.getElementById('mgrEmail_${s.id}').value)" class="px-3 btn-liquid-primary font-bold text-xs">Save</button>
+                </div>
+                <div class="flex items-center justify-between text-[11px] text-slate-500 font-semibold">
+                  <span>${s.confirmedAt ? `Booked: ${d1 + d2}/30 days (${s.period1.start}…)` : 'Not booked yet'}</span>
+                  ${s.confirmedAt ? `<button onclick="reopenStaffSelection(${s.id})" class="text-rose-600 font-extrabold underline">Reopen Dates</button>` : ''}
+                </div>
+              </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+  }
+
   return `
-    <div class="p-4 flex-1">
-      <h1 class="text-2xl font-extrabold text-[#0e2e20] mb-3">Manager Dashboard</h1>
-      <div class="grid grid-cols-3 gap-2 mb-3 text-center">
-        <div class="bg-[#f2fbf6] border p-2.5 rounded-xl font-black text-lg">${activeStaff.length} Staff</div>
-        <div class="bg-[#f2fbf6] border p-2.5 rounded-xl font-black text-lg">${spunCount} Spun</div>
-        <div class="bg-[#f2fbf6] border p-2.5 rounded-xl font-black text-lg">${bookedCount} Booked</div>
+    <div class="p-4 flex-1 space-y-3.5">
+      <h1 class="text-2xl font-extrabold text-slate-900">Manager Control Center</h1>
+
+      <!-- Summary Stat Pills -->
+      <div class="grid grid-cols-3 gap-2.5 text-center">
+        <div class="glass-Tint p-3">
+          <div class="text-2xl font-black text-indigo-700">${activeStaff.length}</div>
+          <div class="text-[11px] font-bold text-slate-500">Active Staff</div>
+        </div>
+        <div class="glass-Tint p-3">
+          <div class="text-2xl font-black text-purple-700">${spunCount}</div>
+          <div class="text-[11px] font-bold text-slate-500">Spun</div>
+        </div>
+        <div class="glass-Tint p-3">
+          <div class="text-2xl font-black text-pink-600">${bookedCount}</div>
+          <div class="text-[11px] font-bold text-slate-500">Booked</div>
+        </div>
       </div>
-      <div class="bg-white border rounded-2xl p-4 shadow-sm space-y-2.5">
-        <button onclick="autoSpinRemainingStaff()" class="w-full bg-[#1b8a5a] text-white py-2.5 rounded-xl text-xs font-bold">Auto-Spin Remaining Staff</button>
-        <button onclick="managerSub='STAFF_CONTROL';renderApp()" class="w-full bg-[#dff5e9] text-[#094228] py-2.5 rounded-xl text-xs font-bold">Manage Staff List &amp; Emails</button>
-        <button onclick="downloadPdfExport()" class="w-full border border-[#0d5c38] text-[#0d5c38] py-2 rounded-xl text-xs font-bold">Download PDF Report</button>
-        <button onclick="downloadExcelExport()" class="w-full border border-[#0d5c38] text-[#0d5c38] py-2 rounded-xl text-xs font-bold">Download Excel (.xlsx)</button>
-        <button onclick="toggleFinaliseCalendar()" class="w-full py-2.5 rounded-xl text-xs font-bold ${state.finalized?'bg-amber-100 text-amber-900':'bg-[#0d5c38] text-white'}">
-          ${state.finalized ? 'Reopen Calendar' : 'Finalise Calendar'}
+
+      <!-- SLOTS & HOLIDAYS CONTROL CARD -->
+      <div class="glass-card p-4">
+        <div class="flex items-center justify-between mb-2.5">
+          <div>
+            <h2 class="font-extrabold text-sm text-slate-900">Leave Slots &amp; Holidays</h2>
+            <p class="text-[11px] text-slate-500">Control monthly caps, custom dates &amp; public holidays</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 mb-3">
+          <button onclick="managerSub='MONTH_LIMITS';renderApp()" class="py-2.5 px-3 btn-liquid-primary font-extrabold text-xs">
+            Monthly Slot Limits
+          </button>
+          <button onclick="managerSub='HOLIDAYS';renderApp()" class="py-2.5 px-3 btn-liquid-amber font-extrabold text-xs">
+            Holidays (${state.holidays.length})
+          </button>
+        </div>
+
+        <!-- Monthly Summary Preview Bar -->
+        <div class="grid grid-cols-6 gap-1 bg-slate-50 p-2 rounded-2xl border border-slate-200/80 text-center mb-3">
+          ${mNames.map((m, idx) => `
+            <div class="p-1 rounded-lg bg-white border border-slate-100">
+              <div class="text-[9px] font-bold text-slate-400">${m}</div>
+              <div class="text-xs font-extrabold text-indigo-700">${state.monthLimits[idx + 1] ?? 2}</div>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- Custom Date Range Slot Override -->
+        <div class="text-xs font-extrabold text-slate-800 mb-1.5">Custom Date / Range Slot Override</div>
+        <div class="grid grid-cols-2 gap-2 mb-2">
+          <input type="date" id="mgrLimStart" min="2027-01-01" max="2027-12-31" />
+          <input type="date" id="mgrLimEnd" min="2027-01-01" max="2027-12-31" />
+        </div>
+        <div class="grid grid-cols-2 gap-2 items-end">
+          <div>
+            <label class="text-[10px] font-bold text-slate-500 block mb-1">Max staff on leave</label>
+            <input type="number" id="mgrLimVal" min="1" max="21" value="3" />
+          </div>
+          <button onclick="saveQuickDateLimit()" class="py-2.5 btn-liquid-teal font-extrabold text-xs">
+            Save Date Limit
+          </button>
+        </div>
+
+        ${Object.keys(state.dateLimits || {}).length > 0 ? `
+          <div class="mt-3 pt-2.5 border-t border-slate-100 flex flex-wrap gap-1.5">
+            ${Object.entries(state.dateLimits).sort().map(([d, l]) => `
+              <span class="bg-indigo-50 border border-indigo-200 text-indigo-900 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
+                ${d}: ${l} slots
+                <button onclick="removeDateLimitOverride('${d}')" class="text-rose-600 font-black ml-0.5">&times;</button>
+              </span>
+            `).join('')}
+          </div>
+        ` : ''}
+      </div>
+
+      <!-- QUICK STAFF & SPIN MANAGEMENT -->
+      <div class="glass-card p-4 space-y-2.5">
+        <h2 class="font-extrabold text-sm text-slate-900">Team Spin &amp; Roster Actions</h2>
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="autoSpinRemainingStaff()" class="py-2.5 px-3 btn-liquid-teal font-extrabold text-xs">
+            Auto-Spin Remaining
+          </button>
+          <button onclick="managerSub='STAFF_CONTROL';renderApp()" class="py-2.5 px-3 btn-liquid-soft font-extrabold text-xs">
+            Staff &amp; Spin Control
+          </button>
+        </div>
+      </div>
+
+      <!-- EXPORTS & FINALISATION -->
+      <div class="glass-card p-4 space-y-2.5">
+        <div class="flex items-center justify-between">
+          <h2 class="font-extrabold text-sm text-slate-900">Exports &amp; Finalisation</h2>
+          <span class="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full ${state.finalized ? 'bg-emerald-100 text-emerald-800' : 'bg-indigo-100 text-indigo-800'}">
+            ${state.finalized ? 'Finalised' : 'Draft Mode'}
+          </span>
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+          <button onclick="downloadPdfExport()" class="py-2.5 btn-liquid-soft font-extrabold text-xs">&darr; PDF</button>
+          <button onclick="downloadExcelExport()" class="py-2.5 btn-liquid-soft font-extrabold text-xs">&darr; Excel</button>
+          <button onclick="downloadJsonBackup()" class="py-2.5 btn-liquid-soft font-extrabold text-xs">&darr; JSON</button>
+        </div>
+        <button onclick="toggleFinaliseCalendar()" class="w-full py-3 font-extrabold text-xs ${state.finalized ? 'btn-liquid-amber' : 'btn-liquid-primary'}">
+          ${state.finalized ? 'Reopen Calendar for Edits' : 'Finalise 2027 Leave Calendar'}
         </button>
-        <button onclick="archiveAndRestartDraw()" class="w-full bg-orange-700 text-white py-2 rounded-xl text-xs font-bold">Archive &amp; Restart Draw</button>
-        <button onclick="resetEntireCloudState()" class="w-full bg-red-800 text-white py-2.5 rounded-xl text-xs font-bold">Reset Entire Planner Data</button>
+        <div class="grid grid-cols-2 gap-2 pt-1">
+          <button onclick="archiveAndRestartDraw()" class="py-2.5 btn-liquid-amber font-extrabold text-xs">Archive &amp; Restart</button>
+          <button onclick="resetEntireCloudState()" class="py-2.5 btn-liquid-danger font-extrabold text-xs">Reset All Data</button>
+        </div>
       </div>
-      <div class="mt-3">${renderReferenceGanttTable(false)}</div>
+
+      <!-- CUTE GANTT CHART PREVIEW -->
+      ${renderReferenceGanttTable(false)}
     </div>`;
 }
 
