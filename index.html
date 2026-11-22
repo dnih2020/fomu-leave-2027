@@ -283,7 +283,24 @@ const plannerDocRef = db.collection('fomu').doc('leaveData_2027');
 const EXPORT_TITLE = 'FOMU 2027 Annual Leave calendar';
 const MANAGER_EMAILS = ['medical.nah@gmail.com', 'sarahaindh@gmail.com'];
 const MAX_ENTITLEMENT_DAYS = 30;
-const MAX_ALLOWED_DATE = '2028-01-31'; // Jan 2028 allowed; Feb 2028+ blocked
+const MAX_ALLOWED_DATE = '2028-01-31';
+
+const GANTT_MONTH_SEGMENTS = [
+  { label: 'Jan', days: 31 },
+  { label: 'Feb', days: 28 },
+  { label: 'Mar', days: 31 },
+  { label: 'Apr', days: 30 },
+  { label: 'May', days: 31 },
+  { label: 'Jun', days: 30 },
+  { label: 'Jul', days: 31 },
+  { label: 'Aug', days: 31 },
+  { label: 'Sep', days: 30 },
+  { label: 'Oct', days: 31 },
+  { label: 'Nov', days: 30 },
+  { label: 'Dec', days: 31 },
+  { label: 'Jan’28', days: 31 }
+];
+const GANTT_TOTAL_DAYS = GANTT_MONTH_SEGMENTS.reduce((sum, m) => sum + m.days, 0); // 396
 
 const INITIAL_STAFF = [
   { id: 1, name: 'Faaig', email: 'faaig0202@gmail.com', canSpin: true },
@@ -348,10 +365,10 @@ const INITIAL_MONTH_LIMITS = {
 };
 
 const INITIAL_JAN2028_POLICY = {
-  staffLimit: 2,           // Max staff allowed on leave simultaneously in Jan 2028
-  maxDaysInJan: 15,        // Max calendar days into Jan 2028 a period may extend
-  maxEndDate: '2028-01-31', // Latest allowed date in Jan 2028 (never Feb 2028+)
-  carryoverOnly: true      // If true, Jan 2028 dates must continue from Dec 2027 leave
+  staffLimit: 2,
+  maxDaysInJan: 15,
+  maxEndDate: '2028-01-31',
+  carryoverOnly: true
 };
 
 function createFreshState() {
@@ -452,13 +469,12 @@ let staffTab = 'MY_LEAVE'; // 'MY_LEAVE' | 'TEAM_CAL'
 let managerSub = 'MAIN'; // 'MAIN' | 'STAFF_CONTROL' | 'HOLIDAYS' | 'MONTH_LIMITS' | 'GANTT'
 let calViewMode = 'WEEK'; // 'WEEK' | 'MONTH' | 'GANTT'
 let selectedCalDate = '2027-04-04';
-let pickerMonthKey = '2027-04'; // '2027-01' .. '2027-12' or '2028-01'
-let activePickTarget = 'p1Start'; // 'p1Start' | 'p1End' | 'p2Start' | 'p2End'
+let pickerMonthKey = '2027-04';
+let activePickTarget = 'p1Start';
 let wheelAngle = 0;
 let isSpinning = false;
 let rollingDisplay = 'SPIN';
 
-// Blank start: no prefilled dates
 let leaveForm = {
   forStaffId: null,
   p1Start: '',
@@ -644,7 +660,7 @@ function calculateWorkingDays(startIso, endIso, holidaysList) {
     dates.push(d);
     calendarDays++;
     if (d.startsWith('2028-01-')) jan2028Days++;
-    const dow = parseIsoUTC(d).getUTCDay(); // 5 = Friday, 6 = Saturday
+    const dow = parseIsoUTC(d).getUTCDay();
     if (dow === 5 || dow === 6) weekendDays++;
     else if (holSet.has(d)) weekdayHolidays++;
   });
@@ -825,7 +841,6 @@ function handleSpinClick() {
   }, 80);
 }
 
-// Always starts blank — no prefilled dates
 function ensureLeaveFormInitialized(staffId) {
   if (leaveForm.forStaffId === staffId) return;
   leaveForm = {
@@ -946,7 +961,6 @@ function validatePeriodBlock(startIso, endIso, label, staffId, st = state) {
     return { active: true, valid: false, workingDays: 0, calendarDays: calc.calendarDays, dates: calc.dates, error: `${label}: Must contain at least 1 working day.` };
   }
 
-  // Jan 2028 carryover rules
   if (calc.jan2028Days > 0) {
     if (calc.jan2028Days > Number(pol.maxDaysInJan || 31)) {
       return {
@@ -1352,32 +1366,37 @@ async function resetEntireCloudState() {
 }
 
 // ============================================================================
-// 6. CUTE GANTT CHART & FULL PDF / EXCEL / JSON EXPORTS
+// 6. CUTE GANTT CHART (PROPORTIONAL MONTHS + "21 Jan to 30 Jan (10d)") & EXPORTS
 // ============================================================================
 function dateToYearFraction(iso) {
   const dt = parseIsoUTC(iso);
   const start = Date.UTC(2027, 0, 1);
-  const dayIndex = Math.max(0, Math.min(395, Math.floor((dt.getTime() - start) / 86400000)));
-  return dayIndex / 396; // 365 days of 2027 + 31 days of Jan 2028
+  const dayIndex = Math.max(0, Math.min(GANTT_TOTAL_DAYS - 1, Math.floor((dt.getTime() - start) / 86400000)));
+  return dayIndex / GANTT_TOTAL_DAYS;
 }
 
-function formatGanttPillLabel(startIso, endIso) {
+function formatGanttPillLabel(startIso, endIso, workingDaysCount = null) {
   if (!startIso || !endIso) return '';
   const mShort = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const s = parseIsoUTC(startIso);
   const e = parseIsoUTC(endIso);
-  const sYr = s.getUTCFullYear() === 2028 ? '’28' : '';
-  const eYr = e.getUTCFullYear() === 2028 ? '’28' : '';
-  return `${s.getUTCDate()} ${mShort[s.getUTCMonth()]}${sYr}–${e.getUTCDate()} ${mShort[e.getUTCMonth()]}${eYr}`;
+  const sYr = s.getUTCFullYear() === 2028 ? ' ’28' : '';
+  const eYr = e.getUTCFullYear() === 2028 ? ' ’28' : '';
+  const days = (workingDaysCount !== null && workingDaysCount !== undefined)
+    ? workingDaysCount
+    : calculateWorkingDays(startIso, endIso, state.holidays).workingDays;
+  return `${s.getUTCDate()} ${mShort[s.getUTCMonth()]}${sYr} to ${e.getUTCDate()} ${mShort[e.getUTCMonth()]}${eYr} (${days}d)`;
 }
 
 function getGanttPeriodsForStaff(s) {
   const periods = [];
   if (s.confirmedAt && s.period1) {
-    periods.push({ start: s.period1.start, end: s.period1.end, color: 'p1' });
+    const d1 = calculateWorkingDays(s.period1.start, s.period1.end, state.holidays).workingDays;
+    periods.push({ start: s.period1.start, end: s.period1.end, days: d1, color: 'p1' });
   }
   if (s.confirmedAt && s.period2) {
-    periods.push({ start: s.period2.start, end: s.period2.end, color: 'p2' });
+    const d2 = calculateWorkingDays(s.period2.start, s.period2.end, state.holidays).workingDays;
+    periods.push({ start: s.period2.start, end: s.period2.end, days: d2, color: 'p2' });
   }
   return periods;
 }
@@ -1418,9 +1437,6 @@ function downloadPdfExport() {
   doc.setTextColor(255, 255, 255);
   doc.text(`${EXPORT_TITLE} — 2027–Jan 2028 Gantt Chart (${statusTag})`, 14, 16);
 
-  const colLabels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan’28'];
-  const colDays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31, 31];
-  const totalSpanDays = 396;
   const tableX = 10, noColW = 10, nameColW = 38, chartX = tableX + noColW + nameColW, chartW = 229, headerY = 21, headerH = 7, rowH = 8.0;
 
   doc.setFillColor(67, 56, 202);
@@ -1432,14 +1448,14 @@ function downloadPdfExport() {
   doc.text('Staff Name', tableX + noColW + nameColW / 2, headerY + 4.8, { align: 'center' });
 
   let dayCursor = 0;
-  colLabels.forEach((mLabel, mIdx) => {
-    const mx = chartX + (dayCursor / totalSpanDays) * chartW;
-    const mw = (colDays[mIdx] / totalSpanDays) * chartW;
+  GANTT_MONTH_SEGMENTS.forEach((seg) => {
+    const mx = chartX + (dayCursor / GANTT_TOTAL_DAYS) * chartW;
+    const mw = (seg.days / GANTT_TOTAL_DAYS) * chartW;
     doc.setFillColor(67, 56, 202);
     doc.setDrawColor(129, 140, 248);
     doc.rect(mx, headerY, mw, headerH, 'FD');
-    doc.text(mLabel, mx + mw / 2, headerY + 4.8, { align: 'center' });
-    dayCursor += colDays[mIdx];
+    doc.text(seg.label, mx + mw / 2, headerY + 4.8, { align: 'center' });
+    dayCursor += seg.days;
   });
 
   state.staff.forEach((s, idx) => {
@@ -1451,12 +1467,12 @@ function downloadPdfExport() {
     doc.rect(tableX + noColW, ry, nameColW, rowH, 'FD');
 
     let dc = 0;
-    colLabels.forEach((_, mIdx) => {
-      const mx = chartX + (dc / totalSpanDays) * chartW;
-      const mw = (colDays[mIdx] / totalSpanDays) * chartW;
+    GANTT_MONTH_SEGMENTS.forEach((seg) => {
+      const mx = chartX + (dc / GANTT_TOTAL_DAYS) * chartW;
+      const mw = (seg.days / GANTT_TOTAL_DAYS) * chartW;
       doc.setFillColor(isEven ? 245 : 255, isEven ? 243 : 255, isEven ? 255 : 255);
       doc.rect(mx, ry, mw, rowH, 'FD');
-      dc += colDays[mIdx];
+      dc += seg.days;
     });
 
     doc.setFontSize(7.5);
@@ -1467,9 +1483,9 @@ function downloadPdfExport() {
     const periods = getGanttPeriodsForStaff(s);
     periods.forEach(p => {
       const fStart = dateToYearFraction(p.start);
-      const fEnd = dateToYearFraction(p.end) + (1 / totalSpanDays);
+      const fEnd = dateToYearFraction(p.end) + (1 / GANTT_TOTAL_DAYS);
       const bx = chartX + fStart * chartW;
-      const bw = Math.max(16, (fEnd - fStart) * chartW);
+      const bw = Math.max(22, (fEnd - fStart) * chartW);
       if (p.color === 'p2') {
         doc.setFillColor(245, 158, 11);
       } else {
@@ -1477,12 +1493,11 @@ function downloadPdfExport() {
       }
       doc.roundedRect(bx, ry + 1.2, bw, rowH - 2.4, 2.2, 2.2, 'F');
       doc.setTextColor(255, 255, 255);
-      doc.setFontSize(5.8);
-      doc.text(formatGanttPillLabel(p.start, p.end), bx + bw / 2, ry + 5.0, { align: 'center' });
+      doc.setFontSize(5.5);
+      doc.text(formatGanttPillLabel(p.start, p.end, p.days), bx + bw / 2, ry + 5.0, { align: 'center' });
     });
   });
 
-  // PAGE 2: STAFF SUMMARY
   doc.addPage();
   doc.setTextColor(30, 27, 75);
   doc.setFontSize(14);
@@ -1729,7 +1744,6 @@ function renderInlineAvailabilityMiniCalendar(staffId) {
         <button type="button" onclick="pickerMonthKey='${monthKeys[Math.min(monthKeys.length - 1, curIdx + 1)]}';renderApp()" class="px-2.5 py-1 btn-liquid-soft text-xs font-extrabold">&gt;</button>
       </div>
 
-      <!-- Which date field tapping a calendar day fills -->
       <div class="flex flex-wrap gap-1 mb-2">
         <span class="text-[10px] font-bold text-slate-500 self-center mr-0.5">Tap fills:</span>
         <button type="button" onclick="activePickTarget='p1Start';renderApp()" class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${activePickTarget === 'p1Start' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-700 border border-slate-200'}">P1 Start</button>
@@ -1774,7 +1788,6 @@ function renderInlineAvailabilityMiniCalendar(staffId) {
         }).join('')}
       </div>
 
-      <!-- Legend -->
       <div class="flex flex-wrap items-center justify-between gap-1.5 mt-2 text-[9.5px] font-bold text-slate-600">
         <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-emerald-200 inline-block"></span>Open</span>
         <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-amber-100 border border-amber-300 inline-block"></span>1 Left / Holiday</span>
@@ -1782,7 +1795,6 @@ function renderInlineAvailabilityMiniCalendar(staffId) {
         <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-slate-200 inline-block"></span>Fri/Sat</span>
       </div>
 
-      <!-- Inspected Day Details -->
       <div class="mt-2 pt-2 border-t border-indigo-200/60 text-[11px] text-slate-700">
         <div>Inspecting <strong>${selectedCalDate}</strong> (${targetLabels[activePickTarget] || 'Date'}): <strong>${inspBooked.length}/${inspLimit}</strong> slots taken${inspBooked.length ? ` by <strong>${esc(inspBooked.join(', '))}</strong>` : ' (all open)'}.</div>
         ${inspHol ? `<div class="text-amber-800 font-bold">Public Holiday: ${esc(inspHol)}</div>` : ''}
@@ -1920,10 +1932,8 @@ function renderMyLeaveTab(me) {
       Pick <strong>1 to 30 working days</strong> (less than 30 is allowed). Period 2 is optional. Late Dec 2027 can continue into Jan 2028 if permitted by manager.
     </p>
 
-    <!-- INLINE MINI CALENDAR FOR SPOTTING FULL / OPEN DATES -->
     ${renderInlineAvailabilityMiniCalendar(me.id)}
 
-    <!-- FIRST PERIOD (REQUIRED) -->
     <div class="glass-card p-3.5 mb-3">
       <div class="flex items-center justify-between mb-2">
         <span class="font-extrabold text-xs text-slate-800">First Leave Period</span>
@@ -1944,7 +1954,6 @@ function renderMyLeaveTab(me) {
         </div>
       </div>
 
-      <!-- Choose custom working days or quick-fill -->
       <div class="flex flex-wrap items-center gap-1.5 mt-2">
         <input type="number" min="1" max="30" placeholder="Days" value="${leaveForm.p1CustomDays}"
           oninput="leaveForm.p1CustomDays=this.value"
@@ -1966,7 +1975,6 @@ function renderMyLeaveTab(me) {
       ` : ''}
     </div>
 
-    <!-- SECOND PERIOD (OPTIONAL) -->
     <div class="glass-card p-3.5 mb-3">
       <div class="flex items-center justify-between mb-2">
         <span class="font-extrabold text-xs text-slate-800">Second Leave Period <span class="text-slate-400 font-semibold">(Optional)</span></span>
@@ -2014,7 +2022,6 @@ function renderMyLeaveTab(me) {
       `}
     </div>
 
-    <!-- TOTAL SUMMARY BADGE (1 TO 30 WORKING DAYS ALLOWED) -->
     <div class="rounded-2xl p-3 text-center font-extrabold text-xs mb-2.5 ${check.canConfirm ? 'bg-emerald-100 text-emerald-900 border border-emerald-300' : 'bg-amber-100 text-amber-900 border border-amber-300'}">
       ${check.canConfirm ? '&#10003; ' : ''}${check.totalWorking} / ${MAX_ENTITLEMENT_DAYS} working days selected${check.canConfirm && check.totalWorking < MAX_ENTITLEMENT_DAYS ? ` (${MAX_ENTITLEMENT_DAYS - check.totalWorking} days left untaken — allowed)` : ''}
     </div>
@@ -2151,10 +2158,12 @@ function renderTeamCalendarTab() {
 }
 
 // ============================================================================
-// 9. CUTE MODERN GANTT CHART COMPONENT (2027 + JAN 2028)
+// 9. CUTE MODERN GANTT CHART COMPONENT (PROPORTIONAL MONTHS + DAY COUNTS)
 // ============================================================================
 function renderReferenceGanttTable(isFullModal = false) {
-  const mNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan’28'];
+  const flexTemplateCols = GANTT_MONTH_SEGMENTS.map(m => `${m.days}fr`).join(' ');
+  const timelineMinWidth = isFullModal ? '1120px' : '1040px';
+
   return `
     <div class="${isFullModal ? 'p-4 sm:p-6 bg-gradient-to-br from-indigo-50/70 via-white to-pink-50/60' : 'mb-3'}">
       <div class="flex flex-wrap items-center justify-between gap-2 mb-3 glass-card p-3">
@@ -2174,12 +2183,12 @@ function renderReferenceGanttTable(isFullModal = false) {
       </div>
 
       <div class="overflow-x-auto rounded-3xl border-2 border-indigo-100 shadow-lg bg-white">
-        <div class="min-w-[980px]">
-          <div class="grid grid-cols-[44px_150px_1fr] bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 text-white font-extrabold text-xs">
+        <div style="min-width:${timelineMinWidth};">
+          <div class="grid grid-cols-[44px_148px_1fr] bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 text-white font-extrabold text-xs">
             <div class="py-3 px-1 text-center border-r border-white/20">No.</div>
             <div class="py-3 px-3 text-left border-r border-white/20">Staff Member</div>
-            <div class="grid grid-cols-13 text-center">
-              ${mNames.map(m => `<div class="py-3 border-r last:border-r-0 border-white/20 text-[11px]">${m}</div>`).join('')}
+            <div class="grid text-center" style="grid-template-columns:${flexTemplateCols};">
+              ${GANTT_MONTH_SEGMENTS.map(m => `<div class="py-3 border-r last:border-r-0 border-white/20 text-[10.5px] px-0.5 truncate">${m.label}</div>`).join('')}
             </div>
           </div>
 
@@ -2187,20 +2196,20 @@ function renderReferenceGanttTable(isFullModal = false) {
             ${state.staff.map((s, idx) => {
               const periods = getGanttPeriodsForStaff(s);
               return `
-                <div class="grid grid-cols-[44px_150px_1fr] items-center text-xs ${idx % 2 === 0 ? 'bg-indigo-50/35' : 'bg-white'} hover:bg-pink-50/40 transition-colors">
+                <div class="grid grid-cols-[44px_148px_1fr] items-center text-xs ${idx % 2 === 0 ? 'bg-indigo-50/35' : 'bg-white'} hover:bg-pink-50/40 transition-colors">
                   <div class="py-2.5 text-center font-extrabold text-indigo-400 border-r border-indigo-50">${s.id}</div>
                   <div class="py-2.5 px-3 font-extrabold text-slate-800 border-r border-indigo-50 truncate flex items-center justify-between gap-1">
                     <span class="truncate">${esc(s.name)}</span>
                     ${s.luckyNumber ? `<span class="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-extrabold">#${pad2(s.luckyNumber)}</span>` : ''}
                   </div>
-                  <div class="relative h-8 grid grid-cols-13">
-                    ${Array.from({ length: 13 }, () => `<div class="border-r last:border-r-0 border-indigo-50/80 h-full"></div>`).join('')}
+                  <div class="relative h-8 grid" style="grid-template-columns:${flexTemplateCols};">
+                    ${GANTT_MONTH_SEGMENTS.map(() => `<div class="border-r last:border-r-0 border-indigo-100/90 h-full"></div>`).join('')}
                     ${periods.map(p => {
                       const startFrac = dateToYearFraction(p.start);
-                      const endFrac = dateToYearFraction(p.end) + (1 / 396);
+                      const endFrac = dateToYearFraction(p.end) + (1 / GANTT_TOTAL_DAYS);
                       const leftPct = (startFrac * 100).toFixed(2);
-                      const widthPct = Math.max(7.2, (endFrac - startFrac) * 100).toFixed(2);
-                      const label = formatGanttPillLabel(p.start, p.end);
+                      const widthPct = Math.max(8.5, (endFrac - startFrac) * 100).toFixed(2);
+                      const label = formatGanttPillLabel(p.start, p.end, p.days);
                       return `
                         <div title="${esc(s.name)}: ${label}"
                           style="left:${leftPct}%;width:${widthPct}%;"
@@ -2220,7 +2229,7 @@ function renderReferenceGanttTable(isFullModal = false) {
           <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full gantt-pill-p1 inline-block"></span>First Period</span>
           <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full gantt-pill-p2 inline-block"></span>Second Period</span>
         </div>
-        <span>Swipe horizontally or tap <strong>Full View</strong></span>
+        <span>Proportional months (28/30/31d) · Swipe or tap <strong>Full View</strong></span>
       </div>
     </div>`;
 }
@@ -2342,7 +2351,6 @@ function renderManagerDashboard() {
         </div>
       </div>
 
-      <!-- SLOTS & HOLIDAYS CONTROL CARD -->
       <div class="glass-card p-4">
         <h2 class="font-extrabold text-sm text-slate-900 mb-0.5">Leave Slots &amp; Holidays</h2>
         <p class="text-[11px] text-slate-500 mb-3">Control monthly caps, custom dates &amp; public holidays</p>
@@ -2365,7 +2373,6 @@ function renderManagerDashboard() {
           `).join('')}
         </div>
 
-        <!-- DEC 2027 -> JAN 2028 CARRYOVER CONTROLS -->
         <div class="glass-Tint p-3 mb-3">
           <div class="text-xs font-extrabold text-indigo-950 mb-2">Jan 2028 Carryover Rules (Feb 2028+ Blocked)</div>
           <div class="grid grid-cols-2 gap-2 mb-2">
@@ -2391,7 +2398,6 @@ function renderManagerDashboard() {
           </button>
         </div>
 
-        <!-- Custom Date Range Slot Override -->
         <div class="text-xs font-extrabold text-slate-800 mb-1.5">Custom Date / Range Slot Override</div>
         <div class="grid grid-cols-2 gap-2 mb-2">
           <input type="date" id="mgrLimStart" min="2027-01-01" max="${MAX_ALLOWED_DATE}" />
@@ -2419,7 +2425,6 @@ function renderManagerDashboard() {
         ` : ''}
       </div>
 
-      <!-- QUICK STAFF & SPIN MANAGEMENT -->
       <div class="glass-card p-4 space-y-2.5">
         <h2 class="font-extrabold text-sm text-slate-900">Team Spin &amp; Roster Actions</h2>
         <div class="grid grid-cols-2 gap-2">
@@ -2432,7 +2437,6 @@ function renderManagerDashboard() {
         </div>
       </div>
 
-      <!-- EXPORTS & FINALISATION -->
       <div class="glass-card p-4 space-y-2.5">
         <div class="flex items-center justify-between">
           <h2 class="font-extrabold text-sm text-slate-900">Exports &amp; Finalisation</h2>
@@ -2454,7 +2458,6 @@ function renderManagerDashboard() {
         </div>
       </div>
 
-      <!-- CUTE GANTT CHART PREVIEW -->
       ${renderReferenceGanttTable(false)}
     </div>`;
 }
