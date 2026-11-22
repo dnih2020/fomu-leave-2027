@@ -21,7 +21,6 @@
       --ink: #0f172a;
       --muted: #64748b;
       --border: #e2e8f0;
-      --primary-grad: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%);
     }
     * {
       box-sizing: border-box;
@@ -41,7 +40,7 @@
       width: 100%;
       max-width: 440px;
       min-height: 100vh;
-      background: rgba(255, 255, 255, 0.86);
+      background: rgba(255, 255, 255, 0.88);
       backdrop-filter: blur(20px);
       display: flex;
       flex-direction: column;
@@ -64,15 +63,15 @@
         linear-gradient(180deg, #ffffff 0%, #f5f3ff 100%);
     }
     .glass-card {
-      background: rgba(255, 255, 255, 0.88);
+      background: rgba(255, 255, 255, 0.92);
       backdrop-filter: blur(12px);
-      border: 1.5px solid rgba(226, 232, 240, 0.9);
+      border: 1.5px solid rgba(226, 232, 240, 0.95);
       border-radius: 24px;
       box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.07), 0 4px 10px -2px rgba(0, 0, 0, 0.03);
     }
     .glass-Tint {
-      background: linear-gradient(135deg, rgba(238, 242, 255, 0.9) 0%, rgba(245, 243, 255, 0.9) 100%);
-      border: 1.5px solid rgba(199, 210, 254, 0.8);
+      background: linear-gradient(135deg, rgba(238, 242, 255, 0.92) 0%, rgba(245, 243, 255, 0.92) 100%);
+      border: 1.5px solid rgba(199, 210, 254, 0.85);
       border-radius: 24px;
     }
 
@@ -203,8 +202,8 @@
     input[type="date"], input[type="email"], input[type="text"], input[type="number"], select {
       border: 1.5px solid #cbd5e1;
       border-radius: 14px;
-      padding: 9px 12px;
-      font-size: 0.85rem;
+      padding: 8px 10px;
+      font-size: 0.82rem;
       font-weight: 600;
       color: var(--ink);
       background: #ffffff;
@@ -283,7 +282,8 @@ const plannerDocRef = db.collection('fomu').doc('leaveData_2027');
 
 const EXPORT_TITLE = 'FOMU 2027 Annual Leave calendar';
 const MANAGER_EMAILS = ['medical.nah@gmail.com', 'sarahaindh@gmail.com'];
-const ENTITLEMENT_DAYS = 30;
+const MAX_ENTITLEMENT_DAYS = 30;
+const MAX_ALLOWED_DATE = '2028-01-31'; // Jan 2028 allowed; Feb 2028+ blocked
 
 const INITIAL_STAFF = [
   { id: 1, name: 'Faaig', email: 'faaig0202@gmail.com', canSpin: true },
@@ -338,12 +338,20 @@ const INITIAL_HOLIDAYS = [
   { date: '2027-08-14', name: "Prophet Muhammad's Birthday" },
   { date: '2027-09-03', name: 'Day Maldives Embraced Islam' },
   { date: '2027-11-03', name: 'Victory Day' },
-  { date: '2027-11-11', name: 'Republic Day' }
+  { date: '2027-11-11', name: 'Republic Day' },
+  { date: '2028-01-01', name: 'New Year 2028' }
 ];
 
 const INITIAL_MONTH_LIMITS = {
   1: 2, 2: 2, 3: 2, 4: 2, 5: 3, 6: 2,
   7: 3, 8: 2, 9: 2, 10: 2, 11: 2, 12: 3
+};
+
+const INITIAL_JAN2028_POLICY = {
+  staffLimit: 2,           // Max staff allowed on leave simultaneously in Jan 2028
+  maxDaysInJan: 15,        // Max calendar days into Jan 2028 a period may extend
+  maxEndDate: '2028-01-31', // Latest allowed date in Jan 2028 (never Feb 2028+)
+  carryoverOnly: true      // If true, Jan 2028 dates must continue from Dec 2027 leave
 };
 
 function createFreshState() {
@@ -366,6 +374,7 @@ function createFreshState() {
     })),
     holidays: INITIAL_HOLIDAYS.map(h => ({ ...h })),
     monthLimits: { ...INITIAL_MONTH_LIMITS },
+    jan2028Policy: { ...INITIAL_JAN2028_POLICY },
     dateLimits: {},
     archives: [],
     activity: [
@@ -410,11 +419,20 @@ function normalizeServerState(data) {
     };
   });
 
+  const mergedJan2028 = {
+    ...INITIAL_JAN2028_POLICY,
+    ...(data.jan2028Policy || {})
+  };
+  if (!mergedJan2028.maxEndDate || mergedJan2028.maxEndDate > MAX_ALLOWED_DATE || mergedJan2028.maxEndDate < '2028-01-01') {
+    mergedJan2028.maxEndDate = MAX_ALLOWED_DATE;
+  }
+
   return {
     ...fresh,
     ...data,
     staff: mergedStaff,
-    monthLimits: data.monthLimits || { ...INITIAL_MONTH_LIMITS },
+    monthLimits: { ...INITIAL_MONTH_LIMITS, ...(data.monthLimits || {}) },
+    jan2028Policy: mergedJan2028,
     dateLimits: data.dateLimits || {},
     holidays: Array.isArray(data.holidays) ? data.holidays : INITIAL_HOLIDAYS.map(h => ({ ...h })),
     archives: Array.isArray(data.archives) ? data.archives : [],
@@ -434,17 +452,22 @@ let staffTab = 'MY_LEAVE'; // 'MY_LEAVE' | 'TEAM_CAL'
 let managerSub = 'MAIN'; // 'MAIN' | 'STAFF_CONTROL' | 'HOLIDAYS' | 'MONTH_LIMITS' | 'GANTT'
 let calViewMode = 'WEEK'; // 'WEEK' | 'MONTH' | 'GANTT'
 let selectedCalDate = '2027-04-04';
+let pickerMonthKey = '2027-04'; // '2027-01' .. '2027-12' or '2028-01'
+let activePickTarget = 'p1Start'; // 'p1Start' | 'p1End' | 'p2Start' | 'p2End'
 let wheelAngle = 0;
 let isSpinning = false;
 let rollingDisplay = 'SPIN';
 
+// Blank start: no prefilled dates
 let leaveForm = {
   forStaffId: null,
   p1Start: '',
   p1End: '',
+  p1CustomDays: '',
   p2Enabled: false,
   p2Start: '',
-  p2End: ''
+  p2End: '',
+  p2CustomDays: ''
 };
 
 // ============================================================================
@@ -465,7 +488,6 @@ function startFirestoreSync() {
         renderApp();
         refreshOpenGanttModal();
       } else {
-        // Initialize only inside a transaction so an empty read never wipes an existing doc
         db.runTransaction(async (tx) => {
           const snap = await tx.get(plannerDocRef);
           if (!snap.exists) {
@@ -507,7 +529,6 @@ auth.onAuthStateChanged((user) => {
   renderApp();
 });
 
-// True Atomic Firestore Transaction: Always reads latest server state before applying user's change
 async function runAtomicPlannerUpdate(mutatorFn, successToastMsg = '') {
   if (!currentUser) {
     showToast('Please sign in with Google first.', 'err');
@@ -550,7 +571,7 @@ async function runAtomicPlannerUpdate(mutatorFn, successToastMsg = '') {
 }
 
 // ============================================================================
-// 3. UTILITIES & MALDIVES WORKING-DAY ENGINE
+// 3. UTILITIES & MALDIVES WORKING-DAY + JAN 2028 CARRYOVER ENGINE
 // ============================================================================
 function pad2(n) { return String(n).padStart(2, '0'); }
 function esc(str) {
@@ -587,25 +608,42 @@ function eachDateInRange(startIso, endIso, callback) {
   if (!startIso || !endIso || startIso > endIso) return;
   let cur = startIso;
   let safety = 0;
-  while (cur <= endIso && safety < 400) {
+  while (cur <= endIso && safety < 420) {
     callback(cur);
     cur = addDays(cur, 1);
     safety++;
   }
 }
+
+function getJan2028PolicyForState(st) {
+  const pol = { ...INITIAL_JAN2028_POLICY, ...((st && st.jan2028Policy) || {}) };
+  if (!pol.maxEndDate || pol.maxEndDate > MAX_ALLOWED_DATE || pol.maxEndDate < '2028-01-01') {
+    pol.maxEndDate = MAX_ALLOWED_DATE;
+  }
+  return pol;
+}
+
+function isAllowedPlannerDate(iso, st = state) {
+  if (!iso || iso < '2027-01-01') return false;
+  const pol = getJan2028PolicyForState(st);
+  const ceiling = pol.maxEndDate < MAX_ALLOWED_DATE ? pol.maxEndDate : MAX_ALLOWED_DATE;
+  return iso <= ceiling;
+}
+
 function calculateWorkingDays(startIso, endIso, holidaysList) {
   if (!startIso || !endIso || startIso > endIso) {
-    return { valid: false, calendarDays: 0, weekendDays: 0, weekdayHolidays: 0, workingDays: 0, dates: [] };
+    return { valid: false, calendarDays: 0, weekendDays: 0, weekdayHolidays: 0, workingDays: 0, jan2028Days: 0, dates: [] };
   }
-  if (!startIso.startsWith('2027-') || !endIso.startsWith('2027-')) {
-    return { valid: false, calendarDays: 0, weekendDays: 0, weekdayHolidays: 0, workingDays: 0, dates: [] };
+  if (startIso < '2027-01-01' || endIso > MAX_ALLOWED_DATE) {
+    return { valid: false, error: 'Dates must be between 01 Jan 2027 and 31 Jan 2028.', calendarDays: 0, weekendDays: 0, weekdayHolidays: 0, workingDays: 0, jan2028Days: 0, dates: [] };
   }
   const holSet = new Set((holidaysList || state.holidays).map(h => h.date));
-  let calendarDays = 0, weekendDays = 0, weekdayHolidays = 0;
+  let calendarDays = 0, weekendDays = 0, weekdayHolidays = 0, jan2028Days = 0;
   const dates = [];
   eachDateInRange(startIso, endIso, d => {
     dates.push(d);
     calendarDays++;
+    if (d.startsWith('2028-01-')) jan2028Days++;
     const dow = parseIsoUTC(d).getUTCDay(); // 5 = Friday, 6 = Saturday
     if (dow === 5 || dow === 6) weekendDays++;
     else if (holSet.has(d)) weekdayHolidays++;
@@ -616,29 +654,40 @@ function calculateWorkingDays(startIso, endIso, holidaysList) {
     weekendDays,
     weekdayHolidays,
     workingDays: calendarDays - weekendDays - weekdayHolidays,
+    jan2028Days,
     dates
   };
 }
-function findEndDateForWorkingDays(startIso, targetWorkingDays) {
-  if (!startIso || !startIso.startsWith('2027-')) return null;
+
+function findEndDateForWorkingDays(startIso, targetWorkingDays, st = state) {
+  if (!startIso || targetWorkingDays <= 0) return null;
+  const pol = getJan2028PolicyForState(st);
+  const maxEnd = pol.maxEndDate < MAX_ALLOWED_DATE ? pol.maxEndDate : MAX_ALLOWED_DATE;
   let cur = startIso;
-  while (cur <= '2027-12-31') {
-    const res = calculateWorkingDays(startIso, cur, state.holidays);
+  while (cur <= maxEnd) {
+    const res = calculateWorkingDays(startIso, cur, st.holidays);
     if (res.workingDays === targetWorkingDays) return cur;
     cur = addDays(cur, 1);
   }
   return null;
 }
+
 function getDailyLimitForState(st, iso) {
   if (st.dateLimits && st.dateLimits[iso] !== undefined) {
     return Number(st.dateLimits[iso]);
   }
+  if (iso.startsWith('2028-01-')) {
+    const pol = getJan2028PolicyForState(st);
+    return Number(pol.staffLimit || 2);
+  }
   const month = Number(iso.slice(5, 7));
   return Number((st.monthLimits && st.monthLimits[month]) || 2);
 }
+
 function getDailyLimit(iso) {
   return getDailyLimitForState(state, iso);
 }
+
 function getStaffOnLeaveOnDate(iso, excludeStaffId = null, customState = null) {
   const st = customState || state;
   const names = [];
@@ -650,10 +699,12 @@ function getStaffOnLeaveOnDate(iso, excludeStaffId = null, customState = null) {
   });
   return names;
 }
+
 function getActiveParticipants(customState = null) {
   const st = customState || state;
   return st.staff.filter(s => s.canSpin !== false);
 }
+
 function getCurrentTurnMember(customState = null) {
   const st = customState || state;
   const active = getActiveParticipants(st);
@@ -661,10 +712,12 @@ function getCurrentTurnMember(customState = null) {
   const sorted = active.slice().sort((a, b) => a.luckyNumber - b.luckyNumber);
   return sorted.find(s => !s.confirmedAt) || null;
 }
+
 function ordinal(n) {
   const s = ['th', 'st', 'nd', 'rd'], v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
+
 function showToast(msg, type = 'info') {
   const box = document.getElementById('toastBox');
   if (!box) return;
@@ -678,6 +731,7 @@ function showToast(msg, type = 'info') {
   clearTimeout(window._toastTimer);
   window._toastTimer = setTimeout(() => box.classList.add('hidden'), 3500);
 }
+
 function getCurrentUserRecord() {
   if (!currentUser || !currentUser.email) return null;
   const norm = normalizeEmail(currentUser.email);
@@ -689,7 +743,7 @@ function getCurrentUserRecord() {
 }
 
 // ============================================================================
-// 4. STAFF & MANAGER ACTIONS
+// 4. STAFF ACTIONS (BLANK START, FLEXIBLE DAYS 1-30, JAN 2028 CARRYOVER)
 // ============================================================================
 function handleGoogleSignIn() {
   const provider = new firebase.auth.GoogleAuthProvider();
@@ -706,7 +760,7 @@ function handleSignOut() {
 
 function handleSpinClick() {
   if (isSpinning) return;
-  if (!cloudSynced) return showToast('Syncing live data from cloud, please wait a second...', 'warn');
+  if (!cloudSynced) return showToast('Syncing live data from cloud, please wait...', 'warn');
   const me = getCurrentUserRecord();
   if (!me) return showToast('Staff profile not found for this email.', 'err');
   if (state.finalized) return showToast('Calendar is finalised and locked.', 'err');
@@ -771,97 +825,215 @@ function handleSpinClick() {
   }, 80);
 }
 
+// Always starts blank — no prefilled dates
 function ensureLeaveFormInitialized(staffId) {
   if (leaveForm.forStaffId === staffId) return;
-  const p1s = '2027-04-04';
-  const p1e = findEndDateForWorkingDays(p1s, 15) || '2027-04-22';
-  const p2s = '2027-09-05';
-  const p2e = findEndDateForWorkingDays(p2s, 15) || '2027-09-23';
   leaveForm = {
     forStaffId: staffId,
-    p1Start: p1s,
-    p1End: p1e,
-    p2Enabled: true,
-    p2Start: p2s,
-    p2End: p2e
+    p1Start: '',
+    p1End: '',
+    p1CustomDays: '',
+    p2Enabled: false,
+    p2Start: '',
+    p2End: '',
+    p2CustomDays: ''
   };
 }
 
-function applyPeriodShortcut(periodNum, targetWorkingDays) {
+function clearLeaveFormDates() {
+  const staffId = leaveForm.forStaffId;
+  leaveForm = {
+    forStaffId: staffId,
+    p1Start: '',
+    p1End: '',
+    p1CustomDays: '',
+    p2Enabled: false,
+    p2Start: '',
+    p2End: '',
+    p2CustomDays: ''
+  };
+  activePickTarget = 'p1Start';
+  renderApp();
+}
+
+function applyPeriodDays(periodNum, rawDays) {
+  const days = Number(rawDays);
+  if (!days || days < 1 || days > MAX_ENTITLEMENT_DAYS) {
+    return showToast(`Enter working days between 1 and ${MAX_ENTITLEMENT_DAYS}.`, 'warn');
+  }
   if (periodNum === 1) {
-    if (!leaveForm.p1Start) leaveForm.p1Start = '2027-04-04';
-    const endIso = findEndDateForWorkingDays(leaveForm.p1Start, targetWorkingDays);
-    if (!endIso) return showToast(`Could not fit ${targetWorkingDays} working days before 31 Dec 2027.`, 'warn');
-    leaveForm.p1End = endIso;
-    if (targetWorkingDays === 30) {
-      leaveForm.p2Enabled = false;
-      leaveForm.p2Start = '';
-      leaveForm.p2End = '';
+    if (!leaveForm.p1Start) {
+      return showToast('Pick a First day for Period 1 first (or tap a date on the mini-calendar).', 'warn');
     }
+    const endIso = findEndDateForWorkingDays(leaveForm.p1Start, days, state);
+    if (!endIso) {
+      return showToast(`Could not fit ${days} working days from ${leaveForm.p1Start} within the allowed limit.`, 'warn');
+    }
+    leaveForm.p1End = endIso;
+    leaveForm.p1CustomDays = String(days);
+    pickerMonthKey = endIso.slice(0, 7);
   } else {
     leaveForm.p2Enabled = true;
     if (!leaveForm.p2Start) {
-      leaveForm.p2Start = leaveForm.p1End ? addDays(leaveForm.p1End, 14) : '2027-09-05';
+      return showToast('Pick a First day for Period 2 first (or tap a date on the mini-calendar).', 'warn');
     }
-    const endIso = findEndDateForWorkingDays(leaveForm.p2Start, targetWorkingDays);
-    if (!endIso) return showToast(`Could not fit ${targetWorkingDays} working days before 31 Dec 2027.`, 'warn');
+    const endIso = findEndDateForWorkingDays(leaveForm.p2Start, days, state);
+    if (!endIso) {
+      return showToast(`Could not fit ${days} working days from ${leaveForm.p2Start} within the allowed limit.`, 'warn');
+    }
     leaveForm.p2End = endIso;
+    leaveForm.p2CustomDays = String(days);
+    pickerMonthKey = endIso.slice(0, 7);
   }
   renderApp();
 }
 
-function validateCurrentLeaveForm(staffId) {
-  const c1 = calculateWorkingDays(leaveForm.p1Start, leaveForm.p1End, state.holidays);
-  let c2 = { valid: true, calendarDays: 0, weekendDays: 0, weekdayHolidays: 0, workingDays: 0, dates: [] };
-  if (leaveForm.p2Enabled && (leaveForm.p2Start || leaveForm.p2End)) {
-    c2 = calculateWorkingDays(leaveForm.p2Start, leaveForm.p2End, state.holidays);
+function handleMiniCalendarDateClick(iso) {
+  if (!isAllowedPlannerDate(iso, state)) {
+    return showToast('Dates in Feb 2028 or later are not allowed.', 'err');
   }
-  const totalWorking = (c1.valid ? c1.workingDays : 0) + (c2.valid ? c2.workingDays : 0);
-
-  let errorMsg = '';
-  if (!leaveForm.p1Start || !leaveForm.p1End) {
-    errorMsg = 'Select First day and Last day for your First leave period.';
-  } else if (leaveForm.p1Start > leaveForm.p1End) {
-    errorMsg = 'First period start date cannot be after end date.';
-  } else if (c1.workingDays <= 0) {
-    errorMsg = 'First period must include at least 1 working day.';
-  } else if (leaveForm.p2Enabled && (leaveForm.p2Start || leaveForm.p2End)) {
-    if (!leaveForm.p2Start || !leaveForm.p2End) {
-      errorMsg = 'Select both First day and Last day for your Second leave period.';
-    } else if (leaveForm.p2Start > leaveForm.p2End) {
-      errorMsg = 'Second period start date cannot be after end date.';
-    } else if (c2.workingDays <= 0) {
-      errorMsg = 'Second period must include at least 1 working day.';
+  selectedCalDate = iso;
+  if (activePickTarget === 'p1Start') {
+    leaveForm.p1Start = iso;
+    if (leaveForm.p1End && leaveForm.p1End < iso) leaveForm.p1End = '';
+    activePickTarget = 'p1End';
+  } else if (activePickTarget === 'p1End') {
+    if (leaveForm.p1Start && iso < leaveForm.p1Start) {
+      leaveForm.p1Start = iso;
+      leaveForm.p1End = '';
+      activePickTarget = 'p1End';
     } else {
-      const noOverlap = (leaveForm.p1End < leaveForm.p2Start) || (leaveForm.p2End < leaveForm.p1Start);
-      if (!noOverlap) {
-        errorMsg = 'First and second leave periods cannot overlap.';
-      }
+      leaveForm.p1End = iso;
+    }
+  } else if (activePickTarget === 'p2Start') {
+    leaveForm.p2Enabled = true;
+    leaveForm.p2Start = iso;
+    if (leaveForm.p2End && leaveForm.p2End < iso) leaveForm.p2End = '';
+    activePickTarget = 'p2End';
+  } else if (activePickTarget === 'p2End') {
+    leaveForm.p2Enabled = true;
+    if (leaveForm.p2Start && iso < leaveForm.p2Start) {
+      leaveForm.p2Start = iso;
+      leaveForm.p2End = '';
+      activePickTarget = 'p2End';
+    } else {
+      leaveForm.p2End = iso;
+    }
+  }
+  renderApp();
+}
+
+function validatePeriodBlock(startIso, endIso, label, staffId, st = state) {
+  const pol = getJan2028PolicyForState(st);
+  if (!startIso && !endIso) {
+    return { active: false, valid: true, workingDays: 0, calendarDays: 0, dates: [], error: '' };
+  }
+  if (!startIso || !endIso) {
+    return { active: true, valid: false, workingDays: 0, calendarDays: 0, dates: [], error: `${label}: Pick both First day and Last day.` };
+  }
+  if (startIso < '2027-01-01' || endIso > MAX_ALLOWED_DATE) {
+    return { active: true, valid: false, workingDays: 0, calendarDays: 0, dates: [], error: `${label}: Dates must be between 01 Jan 2027 and 31 Jan 2028.` };
+  }
+  if (endIso > pol.maxEndDate) {
+    return { active: true, valid: false, workingDays: 0, calendarDays: 0, dates: [], error: `${label}: Latest allowed date set by manager is ${pol.maxEndDate}.` };
+  }
+  if (startIso > endIso) {
+    return { active: true, valid: false, workingDays: 0, calendarDays: 0, dates: [], error: `${label}: First day cannot be after Last day.` };
+  }
+
+  const calc = calculateWorkingDays(startIso, endIso, st.holidays);
+  if (calc.workingDays <= 0) {
+    return { active: true, valid: false, workingDays: 0, calendarDays: calc.calendarDays, dates: calc.dates, error: `${label}: Must contain at least 1 working day.` };
+  }
+
+  // Jan 2028 carryover rules
+  if (calc.jan2028Days > 0) {
+    if (calc.jan2028Days > Number(pol.maxDaysInJan || 31)) {
+      return {
+        active: true, valid: false, workingDays: calc.workingDays, calendarDays: calc.calendarDays, dates: calc.dates,
+        error: `${label}: Max ${pol.maxDaysInJan} day(s) allowed in Jan 2028 (selected ${calc.jan2028Days}).`
+      };
+    }
+    if (pol.carryoverOnly && !startIso.startsWith('2027-12-')) {
+      return {
+        active: true, valid: false, workingDays: calc.workingDays, calendarDays: calc.calendarDays, dates: calc.dates,
+        error: `${label}: Jan 2028 leave is only allowed as carryover starting in December 2027.`
+      };
     }
   }
 
-  if (!errorMsg && totalWorking !== ENTITLEMENT_DAYS) {
-    errorMsg = `Total working days must equal exactly 30 (currently ${totalWorking}).`;
+  const fullDates = [];
+  for (const d of calc.dates) {
+    const booked = getStaffOnLeaveOnDate(d, staffId, st);
+    const lim = getDailyLimitForState(st, d);
+    if (booked.length >= lim) {
+      fullDates.push(`${d} (${booked.join(', ')})`);
+    }
   }
 
-  if (!errorMsg) {
-    const allDates = [...c1.dates, ...c2.dates];
-    for (const d of allDates) {
-      const booked = getStaffOnLeaveOnDate(d, staffId);
-      const lim = getDailyLimit(d);
-      if (booked.length >= lim) {
-        errorMsg = `Daily slot limit (${lim} staff) is full on ${d} (${booked.join(', ')}).`;
-        break;
-      }
-    }
+  if (fullDates.length > 0) {
+    return {
+      active: true,
+      valid: false,
+      workingDays: calc.workingDays,
+      calendarDays: calc.calendarDays,
+      dates: calc.dates,
+      fullDates,
+      error: `${label}: Full on ${fullDates.slice(0, 3).join('; ')}${fullDates.length > 3 ? ` (+${fullDates.length - 3} more)` : ''}.`
+    };
   }
 
   return {
-    c1,
-    c2,
+    active: true,
+    valid: true,
+    workingDays: calc.workingDays,
+    calendarDays: calc.calendarDays,
+    jan2028Days: calc.jan2028Days,
+    dates: calc.dates,
+    fullDates: [],
+    error: ''
+  };
+}
+
+function validateCurrentLeaveForm(staffId, st = state) {
+  const p1 = validatePeriodBlock(leaveForm.p1Start, leaveForm.p1End, 'Period 1', staffId, st);
+  const p2 = leaveForm.p2Enabled
+    ? validatePeriodBlock(leaveForm.p2Start, leaveForm.p2End, 'Period 2', staffId, st)
+    : { active: false, valid: true, workingDays: 0, calendarDays: 0, dates: [], error: '' };
+
+  const totalWorking = (p1.valid ? p1.workingDays : 0) + (p2.valid ? p2.workingDays : 0);
+  const errors = [];
+
+  if (!p1.active || !leaveForm.p1Start || !leaveForm.p1End) {
+    errors.push('Select First day and Last day for First leave period.');
+  } else if (p1.error) {
+    errors.push(p1.error);
+  }
+
+  if (p2.active && p2.error) {
+    errors.push(p2.error);
+  }
+
+  if (leaveForm.p1Start && leaveForm.p1End && leaveForm.p2Enabled && leaveForm.p2Start && leaveForm.p2End) {
+    const overlap = !(leaveForm.p1End < leaveForm.p2Start || leaveForm.p2End < leaveForm.p1Start);
+    if (overlap) {
+      errors.push('First and second leave periods cannot overlap.');
+    }
+  }
+
+  if (totalWorking < 1) {
+    errors.push('Select at least 1 working day.');
+  } else if (totalWorking > MAX_ENTITLEMENT_DAYS) {
+    errors.push(`Total working days cannot exceed ${MAX_ENTITLEMENT_DAYS} (currently ${totalWorking}).`);
+  }
+
+  return {
+    p1,
+    p2,
     totalWorking,
-    errorMsg,
-    canConfirm: !errorMsg && totalWorking === ENTITLEMENT_DAYS
+    errors,
+    errorMsg: errors[0] || '',
+    canConfirm: errors.length === 0 && totalWorking >= 1 && totalWorking <= MAX_ENTITLEMENT_DAYS
   };
 }
 
@@ -870,9 +1042,11 @@ async function confirmLeaveSelection() {
   const me = getCurrentUserRecord();
   if (!me) return;
   const check = validateCurrentLeaveForm(me.id);
-  if (!check.canConfirm) return showToast(check.errorMsg || 'Please select 30 working days.', 'err');
+  if (!check.canConfirm) return showToast(check.errorMsg || 'Check your selected dates.', 'err');
 
-  const p1Payload = { start: leaveForm.p1Start, end: leaveForm.p1End };
+  const p1Payload = (leaveForm.p1Start && leaveForm.p1End)
+    ? { start: leaveForm.p1Start, end: leaveForm.p1End }
+    : null;
   const p2Payload = (leaveForm.p2Enabled && leaveForm.p2Start && leaveForm.p2End)
     ? { start: leaveForm.p2Start, end: leaveForm.p2End }
     : null;
@@ -887,22 +1061,18 @@ async function confirmLeaveSelection() {
       throw new Error(`It is currently ${turn ? turn.name + ' (#' + pad2(turn.luckyNumber) + ')' : 'another colleague'}'s turn.`);
     }
 
-    const calc1 = calculateWorkingDays(p1Payload.start, p1Payload.end, draft.holidays);
-    const calc2 = p2Payload
-      ? calculateWorkingDays(p2Payload.start, p2Payload.end, draft.holidays)
-      : { valid: true, workingDays: 0, dates: [] };
+    const r1 = p1Payload ? validatePeriodBlock(p1Payload.start, p1Payload.end, 'Period 1', target.id, draft) : { active: false, valid: false, workingDays: 0 };
+    const r2 = p2Payload ? validatePeriodBlock(p2Payload.start, p2Payload.end, 'Period 2', target.id, draft) : { active: false, valid: true, workingDays: 0 };
 
-    if (calc1.workingDays + calc2.workingDays !== ENTITLEMENT_DAYS) {
-      throw new Error('Total working days must equal 30.');
+    if (!r1.active || !r1.valid) throw new Error(r1.error || 'Period 1 is invalid.');
+    if (p2Payload && !r2.valid) throw new Error(r2.error || 'Period 2 is invalid.');
+    if (p1Payload && p2Payload && !(p1Payload.end < p2Payload.start || p2Payload.end < p1Payload.start)) {
+      throw new Error('First and second leave periods cannot overlap.');
     }
 
-    const allDates = [...calc1.dates, ...calc2.dates];
-    for (const d of allDates) {
-      const booked = getStaffOnLeaveOnDate(d, target.id, draft);
-      const lim = getDailyLimitForState(draft, d);
-      if (booked.length >= lim) {
-        throw new Error(`Date ${d} reached its slot limit (${lim} staff).`);
-      }
+    const total = r1.workingDays + (p2Payload ? r2.workingDays : 0);
+    if (total < 1 || total > MAX_ENTITLEMENT_DAYS) {
+      throw new Error(`Working days must be between 1 and ${MAX_ENTITLEMENT_DAYS}.`);
     }
 
     target.period1 = p1Payload;
@@ -912,14 +1082,39 @@ async function confirmLeaveSelection() {
     draft.activity.unshift({
       at: new Date().toISOString(),
       actor: currentUser.email,
-      text: `${target.name} (#${pad2(target.luckyNumber)}) confirmed 30 working days`
+      text: `${target.name} (#${pad2(target.luckyNumber)}) confirmed ${total} working days`
     });
-  }, `Confirmed 30 working days for ${me.name}!`);
+  }, `Confirmed ${check.totalWorking} working days for ${me.name}!`);
 }
 
 // ============================================================================
-// 5. MANAGER SLOT, HOLIDAY & STAFF CONTROL HANDLERS
+// 5. MANAGER SLOT, JAN 2028 CARRYOVER, HOLIDAY & STAFF HANDLERS
 // ============================================================================
+async function saveJan2028PolicyFromInputs() {
+  const staffLim = Number(document.getElementById('jan28StaffLimit')?.value);
+  const maxDays = Number(document.getElementById('jan28MaxDays')?.value);
+  const maxEnd = document.getElementById('jan28MaxEnd')?.value || MAX_ALLOWED_DATE;
+  const carryoverOnly = Boolean(document.getElementById('jan28CarryoverOnly')?.checked);
+
+  if (!staffLim || staffLim < 1 || staffLim > 21) return showToast('Jan 2028 staff limit must be 1–21.', 'err');
+  if (!maxDays || maxDays < 1 || maxDays > 31) return showToast('Jan 2028 max days must be 1–31.', 'err');
+  if (maxEnd < '2028-01-01' || maxEnd > MAX_ALLOWED_DATE) return showToast('Jan 2028 end date must be in Jan 2028 (never Feb 2028+).', 'err');
+
+  await runAtomicPlannerUpdate((draft) => {
+    draft.jan2028Policy = {
+      staffLimit: staffLim,
+      maxDaysInJan: maxDays,
+      maxEndDate: maxEnd,
+      carryoverOnly
+    };
+    draft.activity.unshift({
+      at: new Date().toISOString(),
+      actor: currentUser.email,
+      text: `Manager updated Jan 2028 policy: max ${staffLim} staff, max ${maxDays}d up to ${maxEnd}`
+    });
+  }, 'Saved Jan 2028 leave rules!');
+}
+
 async function toggleStaffSpinPermission(staffId) {
   await runAtomicPlannerUpdate((draft) => {
     const s = draft.staff.find(x => x.id === Number(staffId));
@@ -1042,6 +1237,7 @@ async function saveQuickDateLimit() {
   const lim = Number(valEl.value);
   if (!s) return showToast('Please choose a date or start date.', 'warn');
   if (s > e) return showToast('Start date cannot be after end date.', 'err');
+  if (e > MAX_ALLOWED_DATE) return showToast('Overrides cannot go past 31 Jan 2028.', 'err');
   if (isNaN(lim) || lim < 0) return showToast('Invalid slot limit.', 'err');
 
   await runAtomicPlannerUpdate((draft) => {
@@ -1068,10 +1264,12 @@ async function saveQuickDateLimit() {
 async function removeDateLimitOverride(iso) {
   await runAtomicPlannerUpdate((draft) => {
     const month = Number(iso.slice(5, 7));
-    const fallback = (draft.monthLimits && draft.monthLimits[month]) || 2;
+    const fallback = iso.startsWith('2028-01-')
+      ? getJan2028PolicyForState(draft).staffLimit
+      : ((draft.monthLimits && draft.monthLimits[month]) || 2);
     const booked = getStaffOnLeaveOnDate(iso, null, draft).length;
     if (fallback < booked) {
-      throw new Error(`Cannot remove override on ${iso}: ${booked} booked exceeds monthly limit ${fallback}.`);
+      throw new Error(`Cannot remove override on ${iso}: ${booked} booked exceeds limit ${fallback}.`);
     }
     if (draft.dateLimits) delete draft.dateLimits[iso];
   }, 'Removed date slot override!');
@@ -1081,6 +1279,7 @@ async function addHolidayFromManager() {
   const dt = document.getElementById('newHolDate')?.value;
   const nm = document.getElementById('newHolName')?.value?.trim();
   if (!dt || !nm) return showToast('Select holiday date and enter name.', 'warn');
+  if (dt > MAX_ALLOWED_DATE) return showToast('Holiday must be on or before 31 Jan 2028.', 'err');
   await runAtomicPlannerUpdate((draft) => {
     draft.holidays = draft.holidays || [];
     draft.holidays.push({ date: dt, name: nm });
@@ -1089,7 +1288,7 @@ async function addHolidayFromManager() {
       if (s.confirmedAt && s.period1) {
         const d1 = calculateWorkingDays(s.period1.start, s.period1.end, draft.holidays).workingDays;
         const d2 = s.period2 ? calculateWorkingDays(s.period2.start, s.period2.end, draft.holidays).workingDays : 0;
-        s.needsHolidayReview = (d1 + d2 !== ENTITLEMENT_DAYS);
+        s.needsHolidayReview = (d1 + d2 > MAX_ENTITLEMENT_DAYS);
       }
     });
     draft.activity.unshift({
@@ -1103,13 +1302,6 @@ async function addHolidayFromManager() {
 async function removeHolidayAtIndex(idx) {
   await runAtomicPlannerUpdate((draft) => {
     const removed = draft.holidays.splice(idx, 1)[0];
-    draft.staff.forEach(s => {
-      if (s.confirmedAt && s.period1) {
-        const d1 = calculateWorkingDays(s.period1.start, s.period1.end, draft.holidays).workingDays;
-        const d2 = s.period2 ? calculateWorkingDays(s.period2.start, s.period2.end, draft.holidays).workingDays : 0;
-        s.needsHolidayReview = (d1 + d2 !== ENTITLEMENT_DAYS);
-      }
-    });
     if (removed) {
       draft.activity.unshift({
         at: new Date().toISOString(),
@@ -1165,8 +1357,8 @@ async function resetEntireCloudState() {
 function dateToYearFraction(iso) {
   const dt = parseIsoUTC(iso);
   const start = Date.UTC(2027, 0, 1);
-  const dayIndex = Math.max(0, Math.min(364, Math.floor((dt.getTime() - start) / 86400000)));
-  return dayIndex / 365;
+  const dayIndex = Math.max(0, Math.min(395, Math.floor((dt.getTime() - start) / 86400000)));
+  return dayIndex / 396; // 365 days of 2027 + 31 days of Jan 2028
 }
 
 function formatGanttPillLabel(startIso, endIso) {
@@ -1174,7 +1366,9 @@ function formatGanttPillLabel(startIso, endIso) {
   const mShort = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const s = parseIsoUTC(startIso);
   const e = parseIsoUTC(endIso);
-  return `${s.getUTCDate()} ${mShort[s.getUTCMonth()]} – ${e.getUTCDate()} ${mShort[e.getUTCMonth()]}`;
+  const sYr = s.getUTCFullYear() === 2028 ? '’28' : '';
+  const eYr = e.getUTCFullYear() === 2028 ? '’28' : '';
+  return `${s.getUTCDate()} ${mShort[s.getUTCMonth()]}${sYr}–${e.getUTCDate()} ${mShort[e.getUTCMonth()]}${eYr}`;
 }
 
 function getGanttPeriodsForStaff(s) {
@@ -1218,34 +1412,34 @@ function downloadPdfExport() {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const statusTag = state.finalized ? 'FINAL' : 'DRAFT';
 
-  // PAGE 1: GANTT CHART OVERVIEW
   doc.setFillColor(79, 70, 229);
   doc.roundedRect(10, 10, 277, 9, 2, 2, 'F');
   doc.setFontSize(12);
   doc.setTextColor(255, 255, 255);
-  doc.text(`${EXPORT_TITLE} — 2027 Annual Leave Gantt Chart (${statusTag})`, 14, 16);
+  doc.text(`${EXPORT_TITLE} — 2027–Jan 2028 Gantt Chart (${statusTag})`, 14, 16);
 
-  const monthsShort = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const monthDays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  const colLabels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan’28'];
+  const colDays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31, 31];
+  const totalSpanDays = 396;
   const tableX = 10, noColW = 10, nameColW = 38, chartX = tableX + noColW + nameColW, chartW = 229, headerY = 21, headerH = 7, rowH = 8.0;
 
   doc.setFillColor(67, 56, 202);
   doc.rect(tableX, headerY, noColW, headerH, 'FD');
   doc.rect(tableX + noColW, headerY, nameColW, headerH, 'FD');
-  doc.setFontSize(8);
+  doc.setFontSize(7.5);
   doc.setTextColor(255, 255, 255);
   doc.text('No.', tableX + noColW / 2, headerY + 4.8, { align: 'center' });
   doc.text('Staff Name', tableX + noColW + nameColW / 2, headerY + 4.8, { align: 'center' });
 
   let dayCursor = 0;
-  monthsShort.forEach((mLabel, mIdx) => {
-    const mx = chartX + (dayCursor / 365) * chartW;
-    const mw = (monthDays[mIdx] / 365) * chartW;
+  colLabels.forEach((mLabel, mIdx) => {
+    const mx = chartX + (dayCursor / totalSpanDays) * chartW;
+    const mw = (colDays[mIdx] / totalSpanDays) * chartW;
     doc.setFillColor(67, 56, 202);
     doc.setDrawColor(129, 140, 248);
     doc.rect(mx, headerY, mw, headerH, 'FD');
     doc.text(mLabel, mx + mw / 2, headerY + 4.8, { align: 'center' });
-    dayCursor += monthDays[mIdx];
+    dayCursor += colDays[mIdx];
   });
 
   state.staff.forEach((s, idx) => {
@@ -1257,15 +1451,15 @@ function downloadPdfExport() {
     doc.rect(tableX + noColW, ry, nameColW, rowH, 'FD');
 
     let dc = 0;
-    monthsShort.forEach((_, mIdx) => {
-      const mx = chartX + (dc / 365) * chartW;
-      const mw = (monthDays[mIdx] / 365) * chartW;
+    colLabels.forEach((_, mIdx) => {
+      const mx = chartX + (dc / totalSpanDays) * chartW;
+      const mw = (colDays[mIdx] / totalSpanDays) * chartW;
       doc.setFillColor(isEven ? 245 : 255, isEven ? 243 : 255, isEven ? 255 : 255);
       doc.rect(mx, ry, mw, rowH, 'FD');
-      dc += monthDays[mIdx];
+      dc += colDays[mIdx];
     });
 
-    doc.setFontSize(7.8);
+    doc.setFontSize(7.5);
     doc.setTextColor(30, 27, 75);
     doc.text(String(s.id), tableX + noColW / 2, ry + 5.2, { align: 'center' });
     doc.text(s.name, tableX + noColW + 2.5, ry + 5.2);
@@ -1273,9 +1467,9 @@ function downloadPdfExport() {
     const periods = getGanttPeriodsForStaff(s);
     periods.forEach(p => {
       const fStart = dateToYearFraction(p.start);
-      const fEnd = dateToYearFraction(p.end) + (1 / 365);
+      const fEnd = dateToYearFraction(p.end) + (1 / totalSpanDays);
       const bx = chartX + fStart * chartW;
-      const bw = Math.max(18, (fEnd - fStart) * chartW);
+      const bw = Math.max(16, (fEnd - fStart) * chartW);
       if (p.color === 'p2') {
         doc.setFillColor(245, 158, 11);
       } else {
@@ -1283,78 +1477,30 @@ function downloadPdfExport() {
       }
       doc.roundedRect(bx, ry + 1.2, bw, rowH - 2.4, 2.2, 2.2, 'F');
       doc.setTextColor(255, 255, 255);
-      doc.setFontSize(6.2);
+      doc.setFontSize(5.8);
       doc.text(formatGanttPillLabel(p.start, p.end), bx + bw / 2, ry + 5.0, { align: 'center' });
     });
   });
 
-  // PAGE 2: STAFF SUMMARY TABLE
+  // PAGE 2: STAFF SUMMARY
   doc.addPage();
   doc.setTextColor(30, 27, 75);
   doc.setFontSize(14);
   doc.text(`${EXPORT_TITLE} — Staff Summary (${statusTag})`, 14, 14);
   doc.setFontSize(8.5);
   let y = 22;
-  doc.text('ID | Staff Name | Lucky # | First Period | Second Period | Working Days | Status', 14, y);
-  y += 6;
   state.staff.forEach(s => {
     const d1 = s.period1 ? calculateWorkingDays(s.period1.start, s.period1.end, state.holidays).workingDays : 0;
     const d2 = s.period2 ? calculateWorkingDays(s.period2.start, s.period2.end, state.holidays).workingDays : 0;
     const p1 = s.period1 ? `${s.period1.start} to ${s.period1.end} (${d1}d)` : '—';
     const p2 = s.period2 ? `${s.period2.start} to ${s.period2.end} (${d2}d)` : '—';
     const stText = s.canSpin === false ? 'Excluded' : (s.confirmedAt ? 'Confirmed' : 'Pending');
-    doc.text(`${s.id}. ${s.name} | ${s.luckyNumber ? '#' + pad2(s.luckyNumber) : '—'} | ${p1} | ${p2} | ${d1 + d2}/30 | ${stText}`, 14, y);
+    doc.text(`${s.id}. ${s.name} | ${s.luckyNumber ? '#' + pad2(s.luckyNumber) : '—'} | P1: ${p1} | P2: ${p2} | Taken: ${d1 + d2}/30d | ${stText}`, 14, y);
     y += 6.2;
   });
 
-  // PAGES 3–14: 12 MONTHLY CALENDAR GRIDS
-  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  const holMap = {};
-  state.holidays.forEach(h => { holMap[h.date] = h.name; });
-
-  for (let m = 1; m <= 12; m++) {
-    doc.addPage();
-    doc.setFontSize(13);
-    doc.setTextColor(30, 27, 75);
-    doc.text(`${EXPORT_TITLE} — ${months[m - 1]} 2027 (${statusTag})`, 14, 13);
-    const daysInMonth = new Date(Date.UTC(2027, m, 0)).getUTCDate();
-    const firstDow = new Date(Date.UTC(2027, m - 1, 1)).getUTCDay();
-    const cellW = 38, cellH = 28, startX = 14, startY = 21;
-    ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach((dn, idx) => {
-      doc.setFontSize(8);
-      doc.text(dn, startX + idx * cellW + 2, startY - 2);
-    });
-    for (let d = 1; d <= daysInMonth; d++) {
-      const slot = firstDow + d - 1;
-      const col = slot % 7, row = Math.floor(slot / 7);
-      const x = startX + col * cellW, cy = startY + row * cellH;
-      const iso = `2027-${pad2(m)}-${pad2(d)}`;
-      const dow = new Date(Date.UTC(2027, m - 1, d)).getUTCDay();
-      if (dow === 5 || dow === 6) {
-        doc.setFillColor(241, 245, 249);
-        doc.rect(x, cy, cellW, cellH, 'F');
-      } else if (holMap[iso]) {
-        doc.setFillColor(254, 243, 199);
-        doc.rect(x, cy, cellW, cellH, 'F');
-      }
-      doc.setDrawColor(203, 213, 225);
-      doc.rect(x, cy, cellW, cellH);
-      const onLeave = getStaffOnLeaveOnDate(iso);
-      doc.setFontSize(7.5);
-      doc.text(`${d} (${onLeave.length}/${getDailyLimit(iso)})`, x + 1.5, cy + 4);
-      if (holMap[iso]) {
-        doc.setFontSize(6);
-        doc.text(doc.splitTextToSize(holMap[iso], cellW - 3).slice(0, 1), x + 1.5, cy + 8);
-      }
-      if (onLeave.length) {
-        doc.setFontSize(6.5);
-        doc.text(doc.splitTextToSize(onLeave.join(', '), cellW - 3).slice(0, 3), x + 1.5, cy + 12);
-      }
-    }
-  }
-
   doc.save(`${EXPORT_TITLE} (${statusTag}).pdf`);
-  showToast('Downloaded full 14-page PDF calendar!');
+  showToast('Downloaded PDF report!');
 }
 
 function downloadExcelExport() {
@@ -1363,17 +1509,18 @@ function downloadExcelExport() {
   const statusTag = state.finalized ? 'FINAL' : 'DRAFT';
   const summaryRows = [
     [`${EXPORT_TITLE} (${statusTag})`],
-    ['ID', 'Staff Name', 'Participates', 'Lucky #', 'Period 1 Start', 'Period 1 End', 'Period 1 Working Days', 'Period 2 Start', 'Period 2 End', 'Period 2 Working Days', 'Total Working Days', 'Unallocated Days', 'Status']
+    ['ID', 'Staff Name', 'Participates', 'Lucky #', 'Period 1 Start', 'Period 1 End', 'Period 1 Working Days', 'Period 2 Start', 'Period 2 End', 'Period 2 Working Days', 'Total Working Days Taken', 'Unused Days (of 30)', 'Status']
   ];
   state.staff.forEach(s => {
     const d1 = s.period1 ? calculateWorkingDays(s.period1.start, s.period1.end, state.holidays).workingDays : 0;
     const d2 = s.period2 ? calculateWorkingDays(s.period2.start, s.period2.end, state.holidays).workingDays : 0;
+    const tot = d1 + d2;
     summaryRows.push([
       s.id, s.name, s.canSpin !== false ? 'Yes' : 'No',
       s.luckyNumber ? pad2(s.luckyNumber) : '',
       s.period1 ? s.period1.start : '', s.period1 ? s.period1.end : '', d1,
       s.period2 ? s.period2.start : '', s.period2 ? s.period2.end : '', d2,
-      d1 + d2, ENTITLEMENT_DAYS - (d1 + d2),
+      tot, s.confirmedAt ? (MAX_ENTITLEMENT_DAYS - tot) : '',
       s.canSpin === false ? 'Excluded' : (s.confirmedAt ? 'Confirmed' : 'Pending')
     ]);
   });
@@ -1383,12 +1530,12 @@ function downloadExcelExport() {
   state.holidays.forEach(h => { holMap[h.date] = h.name; });
   const dailyRows = [['Date', 'Day', 'Holiday Name', 'Booked Count', 'Daily Slot Limit', 'Staff on Leave']];
   const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  eachDateInRange('2027-01-01', '2027-12-31', d => {
+  eachDateInRange('2027-01-01', MAX_ALLOWED_DATE, d => {
     const dow = dayNames[parseIsoUTC(d).getUTCDay()];
     const onLeave = getStaffOnLeaveOnDate(d);
     dailyRows.push([d, dow, holMap[d] || '', onLeave.length, getDailyLimit(d), onLeave.join(', ')]);
   });
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dailyRows), '365 Day Calendar');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dailyRows), 'Calendar & Jan 2028');
 
   XLSX.writeFile(wb, `${EXPORT_TITLE} (${statusTag}).xlsx`);
   showToast('Downloaded Excel (.xlsx) workbook!');
@@ -1404,7 +1551,7 @@ function downloadJsonBackup() {
 }
 
 // ============================================================================
-// 7. MODERN RENDER ENGINE
+// 7. RENDER ENGINE & INLINE AVAILABILITY MINI-CALENDAR
 // ============================================================================
 function renderApp() {
   const frame = document.getElementById('appFrame');
@@ -1422,7 +1569,6 @@ function renderApp() {
     return;
   }
 
-  // Wait until Firebase confirms live cloud state before showing interactive buttons
   if (!cloudSynced) {
     frame.innerHTML = `
       <div class="signin-bg flex-1 flex flex-col items-center justify-center p-6 text-center">
@@ -1430,9 +1576,7 @@ function renderApp() {
         <div class="font-extrabold text-base text-slate-900 mb-1">Syncing Live Department Data…</div>
         <p class="text-xs text-slate-500 max-w-xs">Connecting to Firebase so your spins and leave dates are safely locked in real time.</p>
         ${cloudError ? `
-          <div class="mt-4 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold p-3 rounded-2xl">
-            ${esc(cloudError)}
-          </div>
+          <div class="mt-4 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold p-3 rounded-2xl">${esc(cloudError)}</div>
           <button onclick="startFirestoreSync()" class="mt-3 px-4 py-2 btn-liquid-primary text-xs font-extrabold">Retry Sync</button>
         ` : ''}
       </div>`;
@@ -1485,7 +1629,7 @@ function renderApp() {
 
   if (activeId) {
     const el = document.getElementById(activeId);
-    if (el && el.tagName === 'INPUT' && el.type !== 'date') el.focus();
+    if (el && el.tagName === 'INPUT' && el.type !== 'date' && el.type !== 'number') el.focus();
   }
 }
 
@@ -1536,8 +1680,114 @@ function renderStaffExperience(me) {
       </div>
     </div>`;
 
-  if (staffTab === 'TEAM_CAL') return tabs + `<div class="p-4 flex-1">${renderTeamCalendarTab(me)}</div>`;
+  if (staffTab === 'TEAM_CAL') return tabs + `<div class="p-4 flex-1">${renderTeamCalendarTab()}</div>`;
   return tabs + `<div class="p-4 flex-1">${renderMyLeaveTab(me)}</div>`;
+}
+
+function renderInlineAvailabilityMiniCalendar(staffId) {
+  const monthKeys = [
+    '2027-01','2027-02','2027-03','2027-04','2027-05','2027-06',
+    '2027-07','2027-08','2027-09','2027-10','2027-11','2027-12','2028-01'
+  ];
+  const monthLabels = {
+    '2027-01': 'Jan 2027', '2027-02': 'Feb 2027', '2027-03': 'Mar 2027', '2027-04': 'Apr 2027',
+    '2027-05': 'May 2027', '2027-06': 'Jun 2027', '2027-07': 'Jul 2027', '2027-08': 'Aug 2027',
+    '2027-09': 'Sep 2027', '2027-10': 'Oct 2027', '2027-11': 'Nov 2027', '2027-12': 'Dec 2027',
+    '2028-01': 'Jan 2028 (Carryover)'
+  };
+
+  const curIdx = Math.max(0, monthKeys.indexOf(pickerMonthKey));
+  const mKey = monthKeys[curIdx];
+  const [yr, mo] = mKey.split('-').map(Number);
+  const daysInMonth = new Date(Date.UTC(yr, mo, 0)).getUTCDate();
+  const firstDow = new Date(Date.UTC(yr, mo - 1, 1)).getUTCDay();
+  const holMap = {};
+  state.holidays.forEach(h => { holMap[h.date] = h.name; });
+
+  const inSelectedRange = (iso) => {
+    const in1 = leaveForm.p1Start && leaveForm.p1End && iso >= leaveForm.p1Start && iso <= leaveForm.p1End;
+    const in2 = leaveForm.p2Enabled && leaveForm.p2Start && leaveForm.p2End && iso >= leaveForm.p2Start && iso <= leaveForm.p2End;
+    return in1 || in2;
+  };
+
+  const targetLabels = {
+    p1Start: 'P1 First Day',
+    p1End: 'P1 Last Day',
+    p2Start: 'P2 First Day',
+    p2End: 'P2 Last Day'
+  };
+
+  const inspBooked = getStaffOnLeaveOnDate(selectedCalDate, staffId);
+  const inspLimit = getDailyLimit(selectedCalDate);
+  const inspHol = holMap[selectedCalDate] || '';
+
+  return `
+    <div class="glass-Tint p-3 mb-3">
+      <div class="flex items-center justify-between gap-1.5 mb-2">
+        <button type="button" onclick="pickerMonthKey='${monthKeys[Math.max(0, curIdx - 1)]}';renderApp()" class="px-2.5 py-1 btn-liquid-soft text-xs font-extrabold">&lt;</button>
+        <div class="text-xs font-extrabold text-indigo-950 text-center">${monthLabels[mKey]}</div>
+        <button type="button" onclick="pickerMonthKey='${monthKeys[Math.min(monthKeys.length - 1, curIdx + 1)]}';renderApp()" class="px-2.5 py-1 btn-liquid-soft text-xs font-extrabold">&gt;</button>
+      </div>
+
+      <!-- Which date field tapping a calendar day fills -->
+      <div class="flex flex-wrap gap-1 mb-2">
+        <span class="text-[10px] font-bold text-slate-500 self-center mr-0.5">Tap fills:</span>
+        <button type="button" onclick="activePickTarget='p1Start';renderApp()" class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${activePickTarget === 'p1Start' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-700 border border-slate-200'}">P1 Start</button>
+        <button type="button" onclick="activePickTarget='p1End';renderApp()" class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${activePickTarget === 'p1End' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-700 border border-slate-200'}">P1 End</button>
+        <button type="button" onclick="activePickTarget='p2Start';leaveForm.p2Enabled=true;renderApp()" class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${activePickTarget === 'p2Start' ? 'bg-purple-600 text-white' : 'bg-white text-slate-700 border border-slate-200'}">P2 Start</button>
+        <button type="button" onclick="activePickTarget='p2End';leaveForm.p2Enabled=true;renderApp()" class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${activePickTarget === 'p2End' ? 'bg-purple-600 text-white' : 'bg-white text-slate-700 border border-slate-200'}">P2 End</button>
+      </div>
+
+      <div class="grid grid-cols-7 gap-1 text-center mb-1">
+        ${['S','M','T','W','T','F','S'].map(d => `<div class="text-[10px] font-extrabold text-slate-400">${d}</div>`).join('')}
+      </div>
+
+      <div class="grid grid-cols-7 gap-1">
+        ${Array(firstDow).fill('<div></div>').join('')}
+        ${Array.from({ length: daysInMonth }, (_, idx) => {
+          const day = idx + 1;
+          const iso = `${yr}-${pad2(mo)}-${pad2(day)}`;
+          const dow = new Date(Date.UTC(yr, mo - 1, day)).getUTCDay();
+          const isWknd = dow === 5 || dow === 6;
+          const isHol = Boolean(holMap[iso]);
+          const booked = getStaffOnLeaveOnDate(iso, staffId);
+          const lim = getDailyLimit(iso);
+          const isFull = booked.length >= lim;
+          const isLow = !isFull && (lim - booked.length === 1);
+          const picked = inSelectedRange(iso);
+
+          let cellCls = 'bg-white border-slate-200 text-slate-800';
+          if (picked) cellCls = 'bg-indigo-600 border-indigo-700 text-white ring-2 ring-indigo-300';
+          else if (isFull) cellCls = 'bg-rose-100 border-rose-300 text-rose-800';
+          else if (isWknd) cellCls = 'bg-slate-200/75 border-slate-200 text-slate-400';
+          else if (isHol) cellCls = 'bg-amber-100/90 border-amber-300 text-amber-900';
+          else if (isLow) cellCls = 'bg-amber-50 border-amber-200 text-amber-900';
+          else cellCls = 'bg-emerald-50/80 border-emerald-200 text-emerald-950';
+
+          return `
+            <div onclick="handleMiniCalendarDateClick('${iso}')"
+              title="${iso}: ${booked.length}/${lim} booked${isHol ? ' · ' + holMap[iso] : ''}"
+              class="cal-tap rounded-lg border py-1 text-center leading-tight ${cellCls} ${iso === selectedCalDate ? 'ring-2 ring-purple-500' : ''}">
+              <div class="text-[11px] font-extrabold">${day}</div>
+              <div class="text-[8.5px] font-bold opacity-85">${isWknd ? 'W' : `${booked.length}/${lim}`}</div>
+            </div>`;
+        }).join('')}
+      </div>
+
+      <!-- Legend -->
+      <div class="flex flex-wrap items-center justify-between gap-1.5 mt-2 text-[9.5px] font-bold text-slate-600">
+        <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-emerald-200 inline-block"></span>Open</span>
+        <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-amber-100 border border-amber-300 inline-block"></span>1 Left / Holiday</span>
+        <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-rose-200 border border-rose-300 inline-block"></span>Full</span>
+        <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-slate-200 inline-block"></span>Fri/Sat</span>
+      </div>
+
+      <!-- Inspected Day Details -->
+      <div class="mt-2 pt-2 border-t border-indigo-200/60 text-[11px] text-slate-700">
+        <div>Inspecting <strong>${selectedCalDate}</strong> (${targetLabels[activePickTarget] || 'Date'}): <strong>${inspBooked.length}/${inspLimit}</strong> slots taken${inspBooked.length ? ` by <strong>${esc(inspBooked.join(', '))}</strong>` : ' (all open)'}.</div>
+        ${inspHol ? `<div class="text-amber-800 font-bold">Public Holiday: ${esc(inspHol)}</div>` : ''}
+      </div>
+    </div>`;
 }
 
 function renderMyLeaveTab(me) {
@@ -1594,20 +1844,15 @@ function renderMyLeaveTab(me) {
   if (me.confirmedAt && me.period1) {
     const d1 = calculateWorkingDays(me.period1.start, me.period1.end, state.holidays).workingDays;
     const d2 = me.period2 ? calculateWorkingDays(me.period2.start, me.period2.end, state.holidays).workingDays : 0;
+    const totalTaken = d1 + d2;
     return `
       <div class="btn-liquid-teal p-4 mb-3.5 flex items-center justify-between">
         <span class="font-extrabold text-sm">${esc(me.name)} &middot; Lucky #${pad2(me.luckyNumber)}</span>
         <span class="bg-white/25 px-2.5 py-0.5 rounded-full text-xs font-bold">Confirmed &#10003;</span>
       </div>
 
-      ${me.needsHolidayReview ? `
-        <div class="bg-amber-100 border border-amber-300 text-amber-900 rounded-2xl p-3 text-xs font-bold mb-3">
-          Notice: The 2027 holiday list was updated, changing your working-day total (${d1 + d2} days). Ask the manager to reopen your dates if needed.
-        </div>
-      ` : ''}
-
       <div class="glass-card p-4 mb-3.5">
-        <h3 class="font-extrabold text-sm text-slate-900 mb-2">My Confirmed 2027 Leave</h3>
+        <h3 class="font-extrabold text-sm text-slate-900 mb-2">My Confirmed Leave</h3>
         <div class="py-2 border-b border-slate-100 flex justify-between text-xs">
           <span class="text-slate-600">First period (${me.period1.start} to ${me.period1.end})</span>
           <strong class="text-emerald-700">${d1} working days</strong>
@@ -1617,9 +1862,9 @@ function renderMyLeaveTab(me) {
             <span class="text-slate-600">Second period (${me.period2.start} to ${me.period2.end})</span>
             <strong class="text-amber-600">${d2} working days</strong>
           </div>
-        ` : ''}
+        ` : `<div class="py-2 border-b border-slate-100 text-[11px] text-slate-400">Second period: Not taken</div>`}
         <div class="mt-3 bg-indigo-50 text-indigo-900 font-extrabold text-xs py-2.5 px-3 rounded-xl text-center">
-          Total &middot; ${d1 + d2} / 30 working days
+          Total Taken &middot; ${totalTaken} working days ${totalTaken < MAX_ENTITLEMENT_DAYS ? `(${MAX_ENTITLEMENT_DAYS - totalTaken} days unused)` : '(Full 30-day allowance)'}
         </div>
       </div>
 
@@ -1661,79 +1906,127 @@ function renderMyLeaveTab(me) {
 
   ensureLeaveFormInitialized(me.id);
   const check = validateCurrentLeaveForm(me.id);
-  const c1 = check.c1;
-  const c2 = check.c2;
-  const remainingAfterP1 = Math.max(0, ENTITLEMENT_DAYS - (c1.valid ? c1.workingDays : 0));
+  const p1 = check.p1;
+  const p2 = check.p2;
+  const remainingDays = Math.max(0, MAX_ENTITLEMENT_DAYS - (p1.valid ? p1.workingDays : 0) - (p2.valid ? p2.workingDays : 0));
 
   return `
-    <div class="btn-liquid-primary p-3.5 mb-3.5 flex items-center justify-between">
+    <div class="btn-liquid-primary p-3.5 mb-3 flex items-center justify-between">
       <span class="font-extrabold text-xs">${esc(me.name)} &middot; #${pad2(me.luckyNumber)} &middot; Your Turn!</span>
-      <span class="bg-white/20 px-2.5 py-0.5 rounded-full text-[11px] font-bold">30 Working Days</span>
+      <button type="button" onclick="clearLeaveFormDates()" class="bg-white/20 hover:bg-white/30 px-2.5 py-1 rounded-full text-[10px] font-extrabold">Clear All</button>
     </div>
 
-    <!-- FIRST PERIOD -->
-    <div class="glass-card p-4 mb-3">
+    <p class="text-[11px] text-slate-500 mb-2.5 font-medium">
+      Pick <strong>1 to 30 working days</strong> (less than 30 is allowed). Period 2 is optional. Late Dec 2027 can continue into Jan 2028 if permitted by manager.
+    </p>
+
+    <!-- INLINE MINI CALENDAR FOR SPOTTING FULL / OPEN DATES -->
+    ${renderInlineAvailabilityMiniCalendar(me.id)}
+
+    <!-- FIRST PERIOD (REQUIRED) -->
+    <div class="glass-card p-3.5 mb-3">
       <div class="flex items-center justify-between mb-2">
         <span class="font-extrabold text-xs text-slate-800">First Leave Period</span>
-        <span class="bg-emerald-100 text-emerald-800 font-extrabold text-[11px] px-2.5 py-0.5 rounded-full">${c1.valid ? c1.workingDays : 0} working days</span>
+        <span class="bg-emerald-100 text-emerald-800 font-extrabold text-[11px] px-2.5 py-0.5 rounded-full">
+          ${p1.valid ? p1.workingDays : 0} working days
+        </span>
       </div>
-      <div class="grid grid-cols-2 gap-2 mb-2.5">
+      <div class="grid grid-cols-2 gap-2 mb-2">
         <div>
           <label class="text-[10px] font-bold text-slate-500 block mb-1">First day</label>
-          <input type="date" min="2027-01-01" max="2027-12-31" value="${leaveForm.p1Start}"
-            oninput="leaveForm.p1Start=this.value;if(!leaveForm.p1End||leaveForm.p1End<this.value)leaveForm.p1End=this.value;renderApp()" />
+          <input type="date" min="2027-01-01" max="${MAX_ALLOWED_DATE}" value="${leaveForm.p1Start}"
+            oninput="leaveForm.p1Start=this.value;if(this.value)pickerMonthKey=this.value.slice(0,7);renderApp()" />
         </div>
         <div>
           <label class="text-[10px] font-bold text-slate-500 block mb-1">Last day</label>
-          <input type="date" min="2027-01-01" max="2027-12-31" value="${leaveForm.p1End}"
-            oninput="leaveForm.p1End=this.value;renderApp()" />
+          <input type="date" min="2027-01-01" max="${MAX_ALLOWED_DATE}" value="${leaveForm.p1End}"
+            oninput="leaveForm.p1End=this.value;if(this.value)pickerMonthKey=this.value.slice(0,7);renderApp()" />
         </div>
       </div>
-      <div class="flex flex-wrap gap-1.5">
-        <button type="button" onclick="applyPeriodShortcut(1, 15)" class="px-2.5 py-1.5 btn-liquid-soft text-[11px] font-bold">+ Auto-fill 15 days</button>
-        <button type="button" onclick="applyPeriodShortcut(1, 30)" class="px-2.5 py-1.5 btn-liquid-soft text-[11px] font-bold">+ Auto-fill all 30 days</button>
+
+      <!-- Choose custom working days or quick-fill -->
+      <div class="flex flex-wrap items-center gap-1.5 mt-2">
+        <input type="number" min="1" max="30" placeholder="Days" value="${leaveForm.p1CustomDays}"
+          oninput="leaveForm.p1CustomDays=this.value"
+          class="w-16 py-1 px-2 text-[11px] font-bold" />
+        <button type="button" onclick="applyPeriodDays(1, document.activeElement.previousElementSibling.value || leaveForm.p1CustomDays)"
+          class="px-2 py-1 btn-liquid-soft text-[10px] font-extrabold">Set Days</button>
+        <button type="button" onclick="applyPeriodDays(1, 10)" class="px-2 py-1 btn-liquid-soft text-[10px] font-extrabold">10d</button>
+        <button type="button" onclick="applyPeriodDays(1, 15)" class="px-2 py-1 btn-liquid-soft text-[10px] font-extrabold">15d</button>
+        <button type="button" onclick="applyPeriodDays(1, 20)" class="px-2 py-1 btn-liquid-soft text-[10px] font-extrabold">20d</button>
+        <button type="button" onclick="applyPeriodDays(1, 30)" class="px-2 py-1 btn-liquid-soft text-[10px] font-extrabold">30d</button>
       </div>
+
+      ${p1.active ? `
+        <div class="mt-2.5 pt-2 border-t border-slate-100 text-[11px] font-bold ${p1.valid ? 'text-emerald-700' : 'text-rose-600'}">
+          ${p1.valid
+            ? `&#10003; Period 1 valid: ${p1.workingDays} working days (${p1.calendarDays} cal days)${p1.jan2028Days ? ` · ${p1.jan2028Days}d in Jan 2028` : ''}`
+            : `&#9888; ${esc(p1.error)}`}
+        </div>
+      ` : ''}
     </div>
 
-    <!-- SECOND PERIOD -->
-    <div class="glass-card p-4 mb-3">
+    <!-- SECOND PERIOD (OPTIONAL) -->
+    <div class="glass-card p-3.5 mb-3">
       <div class="flex items-center justify-between mb-2">
-        <span class="font-extrabold text-xs text-slate-800">Second Leave Period</span>
-        <span class="bg-amber-100 text-amber-800 font-extrabold text-[11px] px-2.5 py-0.5 rounded-full">${leaveForm.p2Enabled && c2.valid ? c2.workingDays : 0} working days</span>
+        <span class="font-extrabold text-xs text-slate-800">Second Leave Period <span class="text-slate-400 font-semibold">(Optional)</span></span>
+        <span class="bg-amber-100 text-amber-800 font-extrabold text-[11px] px-2.5 py-0.5 rounded-full">
+          ${leaveForm.p2Enabled && p2.valid ? p2.workingDays : 0} working days
+        </span>
       </div>
       ${!leaveForm.p2Enabled ? `
-        <button type="button" onclick="leaveForm.p2Enabled=true;renderApp()" class="w-full py-2.5 btn-liquid-soft font-extrabold text-xs">+ Add Second Leave Period</button>
+        <button type="button" onclick="leaveForm.p2Enabled=true;activePickTarget='p2Start';renderApp()" class="w-full py-2.5 btn-liquid-soft font-extrabold text-xs">
+          + Add Second Leave Period (Optional)
+        </button>
       ` : `
-        <div class="grid grid-cols-2 gap-2 mb-2.5">
+        <div class="grid grid-cols-2 gap-2 mb-2">
           <div>
             <label class="text-[10px] font-bold text-slate-500 block mb-1">First day</label>
-            <input type="date" min="2027-01-01" max="2027-12-31" value="${leaveForm.p2Start}"
-              oninput="leaveForm.p2Start=this.value;if(!leaveForm.p2End||leaveForm.p2End<this.value)leaveForm.p2End=this.value;renderApp()" />
+            <input type="date" min="2027-01-01" max="${MAX_ALLOWED_DATE}" value="${leaveForm.p2Start}"
+              oninput="leaveForm.p2Start=this.value;if(this.value)pickerMonthKey=this.value.slice(0,7);renderApp()" />
           </div>
           <div>
             <label class="text-[10px] font-bold text-slate-500 block mb-1">Last day</label>
-            <input type="date" min="2027-01-01" max="2027-12-31" value="${leaveForm.p2End}"
-              oninput="leaveForm.p2End=this.value;renderApp()" />
+            <input type="date" min="2027-01-01" max="${MAX_ALLOWED_DATE}" value="${leaveForm.p2End}"
+              oninput="leaveForm.p2End=this.value;if(this.value)pickerMonthKey=this.value.slice(0,7);renderApp()" />
           </div>
         </div>
-        <div class="flex flex-wrap gap-1.5 items-center">
-          <button type="button" onclick="applyPeriodShortcut(2, 15)" class="px-2.5 py-1.5 btn-liquid-soft text-[11px] font-bold">+ Auto-fill 15 days</button>
-          ${remainingAfterP1 > 0 && remainingAfterP1 !== 15 ? `
-            <button type="button" onclick="applyPeriodShortcut(2, ${remainingAfterP1})" class="px-2.5 py-1.5 btn-liquid-soft text-[11px] font-bold">+ Auto-fill ${remainingAfterP1} days</button>
+        <div class="flex flex-wrap items-center gap-1.5 mt-2">
+          <input type="number" min="1" max="30" placeholder="Days" value="${leaveForm.p2CustomDays}"
+            oninput="leaveForm.p2CustomDays=this.value"
+            class="w-16 py-1 px-2 text-[11px] font-bold" />
+          <button type="button" onclick="applyPeriodDays(2, document.activeElement.previousElementSibling.value || leaveForm.p2CustomDays)"
+            class="px-2 py-1 btn-liquid-soft text-[10px] font-extrabold">Set Days</button>
+          <button type="button" onclick="applyPeriodDays(2, 10)" class="px-2 py-1 btn-liquid-soft text-[10px] font-extrabold">10d</button>
+          <button type="button" onclick="applyPeriodDays(2, 15)" class="px-2 py-1 btn-liquid-soft text-[10px] font-extrabold">15d</button>
+          ${remainingDays > 0 ? `
+            <button type="button" onclick="applyPeriodDays(2, ${remainingDays})" class="px-2 py-1 btn-liquid-soft text-[10px] font-extrabold">Rem (${remainingDays}d)</button>
           ` : ''}
-          <button type="button" onclick="leaveForm.p2Enabled=false;leaveForm.p2Start='';leaveForm.p2End='';renderApp()" class="text-[11px] font-bold text-rose-600 ml-auto px-2 py-1">Remove</button>
+          <button type="button" onclick="leaveForm.p2Enabled=false;leaveForm.p2Start='';leaveForm.p2End='';leaveForm.p2CustomDays='';renderApp()" class="text-[10px] font-extrabold text-rose-600 ml-auto px-2 py-1">Remove</button>
         </div>
+        ${p2.active ? `
+          <div class="mt-2.5 pt-2 border-t border-slate-100 text-[11px] font-bold ${p2.valid ? 'text-emerald-700' : 'text-rose-600'}">
+            ${p2.valid
+              ? `&#10003; Period 2 valid: ${p2.workingDays} working days (${p2.calendarDays} cal days)${p2.jan2028Days ? ` · ${p2.jan2028Days}d in Jan 2028` : ''}`
+              : `&#9888; ${esc(p2.error)}`}
+          </div>
+        ` : ''}
       `}
     </div>
 
+    <!-- TOTAL SUMMARY BADGE (1 TO 30 WORKING DAYS ALLOWED) -->
     <div class="rounded-2xl p-3 text-center font-extrabold text-xs mb-2.5 ${check.canConfirm ? 'bg-emerald-100 text-emerald-900 border border-emerald-300' : 'bg-amber-100 text-amber-900 border border-amber-300'}">
-      ${check.canConfirm ? '&#10003; ' : ''}${check.totalWorking} / 30 working days selected
+      ${check.canConfirm ? '&#10003; ' : ''}${check.totalWorking} / ${MAX_ENTITLEMENT_DAYS} working days selected${check.canConfirm && check.totalWorking < MAX_ENTITLEMENT_DAYS ? ` (${MAX_ENTITLEMENT_DAYS - check.totalWorking} days left untaken — allowed)` : ''}
     </div>
 
-    ${check.errorMsg ? `<div class="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-2xl p-3 mb-3">${esc(check.errorMsg)}</div>` : ''}
+    ${check.errors.length > 0 ? `
+      <div class="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-2xl p-3 mb-3 space-y-1">
+        ${check.errors.map(e => `<div>&bull; ${esc(e)}</div>`).join('')}
+      </div>
+    ` : ''}
 
     <button type="button" onclick="confirmLeaveSelection()" ${!check.canConfirm ? 'disabled' : ''} class="w-full btn-liquid-primary font-extrabold py-3.5 text-sm">
-      Confirm My 30-Day Leave
+      ${check.canConfirm ? `Confirm ${check.totalWorking} Working Day${check.totalWorking === 1 ? '' : 's'}` : 'Confirm Leave Dates'}
     </button>`;
 }
 
@@ -1770,13 +2063,15 @@ function renderTeamCalendarTab() {
     const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekStartIso, i));
     const dStart = parseIsoUTC(weekDates[0]);
     const dEnd = parseIsoUTC(weekDates[6]);
-    const weekLabel = `${dStart.getUTCDate()} ${mNames[dStart.getUTCMonth()].slice(0, 3)} – ${dEnd.getUTCDate()} ${mNames[dEnd.getUTCMonth()].slice(0, 3)} 2027`;
+    const sYr = dStart.getUTCFullYear() === 2028 ? ' ’28' : '';
+    const eYr = dEnd.getUTCFullYear() === 2028 ? ' ’28' : '';
+    const weekLabel = `${dStart.getUTCDate()} ${mNames[dStart.getUTCMonth()].slice(0, 3)}${sYr} – ${dEnd.getUTCDate()} ${mNames[dEnd.getUTCMonth()].slice(0, 3)}${eYr}`;
 
     calGridHtml = `
       <div class="flex items-center justify-between gap-2 mb-2.5">
-        <button onclick="selectedCalDate=addDays(selectedCalDate,-7);renderApp()" class="px-3 py-1.5 btn-liquid-soft font-extrabold text-xs">&lt;</button>
+        <button onclick="const prev=addDays(selectedCalDate,-7);if(prev>='2027-01-01'){selectedCalDate=prev;renderApp()}" class="px-3 py-1.5 btn-liquid-soft font-extrabold text-xs">&lt;</button>
         <div class="flex-1 text-center bg-indigo-50 text-indigo-900 font-extrabold text-xs py-2 rounded-xl">${weekLabel}</div>
-        <button onclick="selectedCalDate=addDays(selectedCalDate,7);renderApp()" class="px-3 py-1.5 btn-liquid-soft font-extrabold text-xs">&gt;</button>
+        <button onclick="const nxt=addDays(selectedCalDate,7);if(nxt<='2028-01-31'){selectedCalDate=nxt;renderApp()}" class="px-3 py-1.5 btn-liquid-soft font-extrabold text-xs">&gt;</button>
       </div>
       <div class="grid grid-cols-7 border border-indigo-100 rounded-2xl overflow-hidden bg-white shadow-xs">
         ${weekDates.map(iso => {
@@ -1786,9 +2081,10 @@ function renderTeamCalendarTab() {
           const isHol = Boolean(holMap[iso]);
           const names = getStaffOnLeaveOnDate(iso);
           const lim = getDailyLimit(iso);
+          const blockedByRange = iso > MAX_ALLOWED_DATE;
           return `
-            <div onclick="selectedCalDate='${iso}';renderApp()"
-              class="cal-tap min-h-[108px] p-1 border-r last:border-r-0 border-slate-100 flex flex-col items-center ${isWknd ? 'bg-slate-100/70' : (isHol ? 'bg-amber-50/80' : 'bg-white')} ${iso === selectedCalDate ? 'ring-2 ring-inset ring-indigo-500' : ''}">
+            <div onclick="${blockedByRange ? '' : `selectedCalDate='${iso}';renderApp()`}"
+              class="cal-tap min-h-[108px] p-1 border-r last:border-r-0 border-slate-100 flex flex-col items-center ${blockedByRange ? 'bg-slate-200/50 opacity-45' : (isWknd ? 'bg-slate-100/70' : (isHol ? 'bg-amber-50/80' : 'bg-white'))} ${iso === selectedCalDate ? 'ring-2 ring-inset ring-indigo-500' : ''}">
               <div class="text-[10px] font-extrabold text-slate-700">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dow]} ${dt.getUTCDate()}</div>
               <div class="text-[9px] font-bold text-slate-400 mb-1">${names.length}/${lim}</div>
               <div class="w-full flex flex-col gap-1">
@@ -1798,17 +2094,22 @@ function renderTeamCalendarTab() {
         }).join('')}
       </div>`;
   } else {
-    const curMonth = selDt.getUTCMonth() + 1;
-    const daysInMonth = new Date(Date.UTC(2027, curMonth, 0)).getUTCDate();
-    const firstDow = new Date(Date.UTC(2027, curMonth - 1, 1)).getUTCDay();
-    const prevMonth = curMonth === 1 ? 12 : curMonth - 1;
-    const nextMonth = curMonth === 12 ? 1 : curMonth + 1;
+    const isJan28 = selectedCalDate.startsWith('2028-');
+    const curMonth = isJan28 ? 13 : selDt.getUTCMonth() + 1;
+    const yr = isJan28 ? 2028 : 2027;
+    const mo = isJan28 ? 1 : curMonth;
+    const daysInMonth = new Date(Date.UTC(yr, mo, 0)).getUTCDate();
+    const firstDow = new Date(Date.UTC(yr, mo - 1, 1)).getUTCDay();
+
+    const prevTarget = curMonth === 1 ? null : (curMonth === 13 ? '2027-12-01' : `2027-${pad2(curMonth - 1)}-01`);
+    const nextTarget = curMonth === 13 ? null : (curMonth === 12 ? '2028-01-01' : `2027-${pad2(curMonth + 1)}-01`);
+    const headerTitle = curMonth === 13 ? 'January 2028 (Carryover)' : `${mNames[curMonth - 1]} 2027`;
 
     calGridHtml = `
       <div class="flex items-center justify-between gap-2 mb-2.5">
-        <button onclick="selectedCalDate='2027-${pad2(prevMonth)}-01';renderApp()" class="px-3 py-1.5 btn-liquid-soft font-extrabold text-xs">&lt;</button>
-        <div class="flex-1 text-center bg-indigo-50 text-indigo-900 font-extrabold text-xs py-2 rounded-xl">${mNames[curMonth - 1]} 2027</div>
-        <button onclick="selectedCalDate='2027-${pad2(nextMonth)}-01';renderApp()" class="px-3 py-1.5 btn-liquid-soft font-extrabold text-xs">&gt;</button>
+        <button ${!prevTarget ? 'disabled' : ''} onclick="selectedCalDate='${prevTarget}';renderApp()" class="px-3 py-1.5 btn-liquid-soft font-extrabold text-xs">&lt;</button>
+        <div class="flex-1 text-center bg-indigo-50 text-indigo-900 font-extrabold text-xs py-2 rounded-xl">${headerTitle}</div>
+        <button ${!nextTarget ? 'disabled' : ''} onclick="selectedCalDate='${nextTarget}';renderApp()" class="px-3 py-1.5 btn-liquid-soft font-extrabold text-xs">&gt;</button>
       </div>
       <div class="grid grid-cols-7 gap-1 text-center mb-1">
         ${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => `<div class="text-[10px] font-extrabold text-slate-400">${d}</div>`).join('')}
@@ -1817,8 +2118,8 @@ function renderTeamCalendarTab() {
         ${Array(firstDow).fill('<div></div>').join('')}
         ${Array.from({ length: daysInMonth }, (_, idx) => {
           const day = idx + 1;
-          const iso = `2027-${pad2(curMonth)}-${pad2(day)}`;
-          const dow = new Date(Date.UTC(2027, curMonth - 1, day)).getUTCDay();
+          const iso = `${yr}-${pad2(mo)}-${pad2(day)}`;
+          const dow = new Date(Date.UTC(yr, mo - 1, day)).getUTCDay();
           const isWknd = dow === 5 || dow === 6;
           const isHol = Boolean(holMap[iso]);
           const names = getStaffOnLeaveOnDate(iso);
@@ -1850,16 +2151,16 @@ function renderTeamCalendarTab() {
 }
 
 // ============================================================================
-// 9. CUTE MODERN GANTT CHART COMPONENT
+// 9. CUTE MODERN GANTT CHART COMPONENT (2027 + JAN 2028)
 // ============================================================================
 function renderReferenceGanttTable(isFullModal = false) {
-  const mNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const mNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan’28'];
   return `
     <div class="${isFullModal ? 'p-4 sm:p-6 bg-gradient-to-br from-indigo-50/70 via-white to-pink-50/60' : 'mb-3'}">
       <div class="flex flex-wrap items-center justify-between gap-2 mb-3 glass-card p-3">
         <div class="flex items-center gap-2">
           <span class="w-3 h-3 rounded-full bg-gradient-to-r from-indigo-500 to-pink-500"></span>
-          <span class="font-extrabold text-xs sm:text-sm text-slate-800">2027 Team Leave Gantt Timeline</span>
+          <span class="font-extrabold text-xs sm:text-sm text-slate-800">2027 – Jan 2028 Gantt Timeline</span>
         </div>
         <div class="flex flex-wrap gap-1.5">
           <button onclick="downloadPdfExport()" class="px-3 py-1.5 btn-liquid-teal font-extrabold text-[11px]">&darr; PDF</button>
@@ -1873,39 +2174,37 @@ function renderReferenceGanttTable(isFullModal = false) {
       </div>
 
       <div class="overflow-x-auto rounded-3xl border-2 border-indigo-100 shadow-lg bg-white">
-        <div class="min-w-[920px]">
-          <!-- Cute Pastel Gradient Header -->
-          <div class="grid grid-cols-[44px_156px_1fr] bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 text-white font-extrabold text-xs">
+        <div class="min-w-[980px]">
+          <div class="grid grid-cols-[44px_150px_1fr] bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 text-white font-extrabold text-xs">
             <div class="py-3 px-1 text-center border-r border-white/20">No.</div>
             <div class="py-3 px-3 text-left border-r border-white/20">Staff Member</div>
-            <div class="grid grid-cols-12 text-center">
-              ${mNames.map(m => `<div class="py-3 border-r last:border-r-0 border-white/20">${m}</div>`).join('')}
+            <div class="grid grid-cols-13 text-center">
+              ${mNames.map(m => `<div class="py-3 border-r last:border-r-0 border-white/20 text-[11px]">${m}</div>`).join('')}
             </div>
           </div>
 
-          <!-- 21 Staff Rows -->
           <div class="divide-y divide-indigo-50">
             ${state.staff.map((s, idx) => {
               const periods = getGanttPeriodsForStaff(s);
               return `
-                <div class="grid grid-cols-[44px_156px_1fr] items-center text-xs ${idx % 2 === 0 ? 'bg-indigo-50/35' : 'bg-white'} hover:bg-pink-50/40 transition-colors">
+                <div class="grid grid-cols-[44px_150px_1fr] items-center text-xs ${idx % 2 === 0 ? 'bg-indigo-50/35' : 'bg-white'} hover:bg-pink-50/40 transition-colors">
                   <div class="py-2.5 text-center font-extrabold text-indigo-400 border-r border-indigo-50">${s.id}</div>
                   <div class="py-2.5 px-3 font-extrabold text-slate-800 border-r border-indigo-50 truncate flex items-center justify-between gap-1">
                     <span class="truncate">${esc(s.name)}</span>
                     ${s.luckyNumber ? `<span class="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-extrabold">#${pad2(s.luckyNumber)}</span>` : ''}
                   </div>
-                  <div class="relative h-8 grid grid-cols-12">
-                    ${Array.from({ length: 12 }, () => `<div class="border-r last:border-r-0 border-indigo-50/80 h-full"></div>`).join('')}
+                  <div class="relative h-8 grid grid-cols-13">
+                    ${Array.from({ length: 13 }, () => `<div class="border-r last:border-r-0 border-indigo-50/80 h-full"></div>`).join('')}
                     ${periods.map(p => {
                       const startFrac = dateToYearFraction(p.start);
-                      const endFrac = dateToYearFraction(p.end) + (1 / 365);
+                      const endFrac = dateToYearFraction(p.end) + (1 / 396);
                       const leftPct = (startFrac * 100).toFixed(2);
                       const widthPct = Math.max(7.2, (endFrac - startFrac) * 100).toFixed(2);
                       const label = formatGanttPillLabel(p.start, p.end);
                       return `
                         <div title="${esc(s.name)}: ${label}"
                           style="left:${leftPct}%;width:${widthPct}%;"
-                          class="absolute top-1 bottom-1 rounded-full px-2 flex items-center justify-center text-[9.5px] font-extrabold whitespace-nowrap overflow-hidden ${p.color === 'p2' ? 'gantt-pill-p2' : 'gantt-pill-p1'}">
+                          class="absolute top-1 bottom-1 rounded-full px-2 flex items-center justify-center text-[9px] font-extrabold whitespace-nowrap overflow-hidden ${p.color === 'p2' ? 'gantt-pill-p2' : 'gantt-pill-p1'}">
                           ${esc(label)}
                         </div>`;
                     }).join('')}
@@ -1918,8 +2217,8 @@ function renderReferenceGanttTable(isFullModal = false) {
 
       <div class="flex flex-wrap items-center justify-between gap-2 mt-2.5 text-[11px] text-slate-500 px-1 font-semibold">
         <div class="flex items-center gap-3">
-          <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full gantt-pill-p1 inline-block"></span>First Leave Period</span>
-          <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full gantt-pill-p2 inline-block"></span>Second Leave Period</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full gantt-pill-p1 inline-block"></span>First Period</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full gantt-pill-p2 inline-block"></span>Second Period</span>
         </div>
         <span>Swipe horizontally or tap <strong>Full View</strong></span>
       </div>
@@ -1927,13 +2226,14 @@ function renderReferenceGanttTable(isFullModal = false) {
 }
 
 // ============================================================================
-// 10. MANAGER DASHBOARD (SLOTS, HOLIDAYS, STAFF & EXPORTS)
+// 10. MANAGER DASHBOARD (MONTHLY SLOTS, JAN 2028 CARRYOVER, HOLIDAYS, STAFF)
 // ============================================================================
 function renderManagerDashboard() {
   const activeStaff = getActiveParticipants();
   const spunCount = activeStaff.filter(s => s.luckyNumber !== null).length;
   const bookedCount = activeStaff.filter(s => s.confirmedAt).length;
   const mNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const janPol = getJan2028PolicyForState(state);
 
   if (managerSub === 'MONTH_LIMITS') {
     return `
@@ -1959,13 +2259,13 @@ function renderManagerDashboard() {
     return `
       <div class="p-4 flex-1">
         <button onclick="managerSub='MAIN';renderApp()" class="mb-3 px-3.5 py-2 btn-liquid-soft font-extrabold text-xs">&larr; Back to Manager Dashboard</button>
-        <h1 class="text-xl font-extrabold text-slate-900 mb-1">2027 Public Holidays</h1>
-        <p class="text-xs text-slate-500 mb-3">Weekday public holidays are automatically excluded when counting a staff member's 30 working days.</p>
+        <h1 class="text-xl font-extrabold text-slate-900 mb-1">2027 – Jan 2028 Public Holidays</h1>
+        <p class="text-xs text-slate-500 mb-3">Weekday public holidays are automatically excluded when counting working days.</p>
 
         <div class="glass-Tint p-3.5 mb-3.5">
-          <div class="text-xs font-extrabold text-indigo-950 mb-2">Add New 2027 Holiday</div>
+          <div class="text-xs font-extrabold text-indigo-950 mb-2">Add New Holiday Date</div>
           <div class="grid grid-cols-2 gap-2 mb-2.5">
-            <input type="date" id="newHolDate" min="2027-01-01" max="2027-12-31" />
+            <input type="date" id="newHolDate" min="2027-01-01" max="${MAX_ALLOWED_DATE}" />
             <input type="text" id="newHolName" placeholder="Holiday title" />
           </div>
           <button onclick="addHolidayFromManager()" class="w-full py-2.5 btn-liquid-primary font-extrabold text-xs">
@@ -1975,7 +2275,7 @@ function renderManagerDashboard() {
 
         <label class="flex items-center gap-2.5 text-xs font-bold mb-3 glass-card p-3">
           <input type="checkbox" ${state.holidaysReviewed ? 'checked' : ''} onchange="toggleHolidaysReviewed(this.checked)" />
-          <span>I have reviewed and verified the 2027 holiday list</span>
+          <span>I have reviewed and verified the holiday list</span>
         </label>
 
         <div class="glass-card divide-y divide-slate-100 overflow-hidden">
@@ -2014,7 +2314,7 @@ function renderManagerDashboard() {
                   <button onclick="updateStaffEmail(${s.id}, document.getElementById('mgrEmail_${s.id}').value)" class="px-3 btn-liquid-primary font-bold text-xs">Save</button>
                 </div>
                 <div class="flex items-center justify-between text-[11px] text-slate-500 font-semibold">
-                  <span>${s.confirmedAt ? `Booked: ${d1 + d2}/30 days (${s.period1.start}…)` : 'Not booked yet'}</span>
+                  <span>${s.confirmedAt ? `Booked: ${d1 + d2}/30d (${s.period1.start}…)` : 'Not booked yet'}</span>
                   ${s.confirmedAt ? `<button onclick="reopenStaffSelection(${s.id})" class="text-rose-600 font-extrabold underline">Reopen Dates</button>` : ''}
                 </div>
               </div>`;
@@ -2027,7 +2327,6 @@ function renderManagerDashboard() {
     <div class="p-4 flex-1 space-y-3.5">
       <h1 class="text-2xl font-extrabold text-slate-900">Manager Control Center</h1>
 
-      <!-- Summary Stat Pills -->
       <div class="grid grid-cols-3 gap-2.5 text-center">
         <div class="glass-Tint p-3">
           <div class="text-2xl font-black text-indigo-700">${activeStaff.length}</div>
@@ -2045,12 +2344,8 @@ function renderManagerDashboard() {
 
       <!-- SLOTS & HOLIDAYS CONTROL CARD -->
       <div class="glass-card p-4">
-        <div class="flex items-center justify-between mb-2.5">
-          <div>
-            <h2 class="font-extrabold text-sm text-slate-900">Leave Slots &amp; Holidays</h2>
-            <p class="text-[11px] text-slate-500">Control monthly caps, custom dates &amp; public holidays</p>
-          </div>
-        </div>
+        <h2 class="font-extrabold text-sm text-slate-900 mb-0.5">Leave Slots &amp; Holidays</h2>
+        <p class="text-[11px] text-slate-500 mb-3">Control monthly caps, custom dates &amp; public holidays</p>
 
         <div class="grid grid-cols-2 gap-2 mb-3">
           <button onclick="managerSub='MONTH_LIMITS';renderApp()" class="py-2.5 px-3 btn-liquid-primary font-extrabold text-xs">
@@ -2061,7 +2356,6 @@ function renderManagerDashboard() {
           </button>
         </div>
 
-        <!-- Monthly Summary Preview Bar -->
         <div class="grid grid-cols-6 gap-1 bg-slate-50 p-2 rounded-2xl border border-slate-200/80 text-center mb-3">
           ${mNames.map((m, idx) => `
             <div class="p-1 rounded-lg bg-white border border-slate-100">
@@ -2071,11 +2365,37 @@ function renderManagerDashboard() {
           `).join('')}
         </div>
 
+        <!-- DEC 2027 -> JAN 2028 CARRYOVER CONTROLS -->
+        <div class="glass-Tint p-3 mb-3">
+          <div class="text-xs font-extrabold text-indigo-950 mb-2">Jan 2028 Carryover Rules (Feb 2028+ Blocked)</div>
+          <div class="grid grid-cols-2 gap-2 mb-2">
+            <div>
+              <label class="text-[10px] font-bold text-slate-600 block mb-1">Max staff on leave in Jan ’28</label>
+              <input type="number" id="jan28StaffLimit" min="1" max="21" value="${janPol.staffLimit}" />
+            </div>
+            <div>
+              <label class="text-[10px] font-bold text-slate-600 block mb-1">Max days allowed in Jan ’28</label>
+              <input type="number" id="jan28MaxDays" min="1" max="31" value="${janPol.maxDaysInJan}" />
+            </div>
+          </div>
+          <div class="mb-2">
+            <label class="text-[10px] font-bold text-slate-600 block mb-1">Latest allowed date in Jan 2028</label>
+            <input type="date" id="jan28MaxEnd" min="2028-01-01" max="2028-01-31" value="${janPol.maxEndDate}" />
+          </div>
+          <label class="flex items-center gap-2 text-[11px] font-bold text-slate-700 mb-2.5">
+            <input type="checkbox" id="jan28CarryoverOnly" ${janPol.carryoverOnly ? 'checked' : ''} />
+            <span>Only allow Jan 2028 when continuing from Dec 2027</span>
+          </label>
+          <button onclick="saveJan2028PolicyFromInputs()" class="w-full py-2 btn-liquid-primary font-extrabold text-xs">
+            Save Jan 2028 Rules
+          </button>
+        </div>
+
         <!-- Custom Date Range Slot Override -->
         <div class="text-xs font-extrabold text-slate-800 mb-1.5">Custom Date / Range Slot Override</div>
         <div class="grid grid-cols-2 gap-2 mb-2">
-          <input type="date" id="mgrLimStart" min="2027-01-01" max="2027-12-31" />
-          <input type="date" id="mgrLimEnd" min="2027-01-01" max="2027-12-31" />
+          <input type="date" id="mgrLimStart" min="2027-01-01" max="${MAX_ALLOWED_DATE}" />
+          <input type="date" id="mgrLimEnd" min="2027-01-01" max="${MAX_ALLOWED_DATE}" />
         </div>
         <div class="grid grid-cols-2 gap-2 items-end">
           <div>
